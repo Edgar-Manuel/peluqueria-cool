@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Peluquería Cool - Estilismo de Vanguardia en Arce. Experimenta el arte del cabello con los mejores estilistas.">
+    <title>COOL | Estilismo de Vanguardia - Peluquería Premium</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- Cursor personalizado -->
+    <div class="cursor-dot"></div>
+    <div class="cursor-ring"></div>
+
+    <!-- Pantalla de Carga -->
+    <div id="loader" class="loader">
+        <div class="loader-content">
+            <div class="loader-logo">
+                <span class="loader-letter" style="--i:0">C</span>
+                <span class="loader-letter" style="--i:1">O</span>
+                <span class="loader-letter" style="--i:2">O</span>
+                <span class="loader-letter" style="--i:3">L</span>
+            </div>
+            <div class="loader-bar">
+                <div class="loader-progress"></div>
+            </div>
+            <p class="loader-text">Preparando tu experiencia...</p>
+        </div>
+    </div>
+
+    <!-- Navegación Sticky -->
+    <nav id="navbar" class="navbar">
+        <div class="nav-container">
+            <a href="#hero" class="nav-logo">COOL</a>
+            <button class="nav-toggle" id="navToggle" aria-label="Menú">
+                <span></span><span></span><span></span>
+            </button>
+            <ul class="nav-menu" id="navMenu">
+                <li><a href="#salon" class="nav-link">El Salón</a></li>
+                <li><a href="#reservas" class="nav-link">Reservas</a></li>
+                <li><a href="#staff" class="nav-link">Staff</a></li>
+                <li><a href="#lookbook" class="nav-link">Lookbook 2026</a></li>
+                <li><a href="#contacto" class="nav-link">Contacto</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero con Video Controlado por Scroll -->
+    <div class="hero-wrapper">
+        <section id="hero" class="hero">
+            <div class="hero-background">
+                <!-- VIDEO: Control perfecto por scroll -->
+                <video id="heroVideo" muted playsinline preload="auto" class="hero-video">
+                    <source
+                        src="https://pklskdibblefgcodcfhi.supabase.co/storage/v1/object/sign/peluqueria%20cool/video%201%20peluqieria%20cool.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84ZjlhZWE1Mi0wYTI1LTQ5ZTctYjI5YS03ZWI0ZDYwNmExZWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZWx1cXVlcmlhIGNvb2wvdmlkZW8gMSBwZWx1cWllcmlhIGNvb2wubXA0IiwiaWF0IjoxNzY4MzEyMzMzLCJleHAiOjIzOTkwMzIzMzN9.vXIdJx82U3d3YSKIdV49Fb7AdAbVrDFwhde5gu0TI5M"
+                        type="video/mp4">
+                </video>
+                <!-- Fallback: Imagen WebP (se usará si no hay video) -->
+                <img id="heroImage" crossorigin="anonymous"
+                    src="https://pklskdibblefgcodcfhi.supabase.co/storage/v1/object/sign/peluqueria%20cool/video1peluqieriacool-ezgif.com-video-to-webp-converter.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84ZjlhZWE1Mi0wYTI1LTQ5ZTctYjI5YS03ZWI0ZDYwNmExZWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZWx1cXVlcmlhIGNvb2wvdmlkZW8xcGVsdXFpZXJpYWNvb2wtZXpnaWYuY29tLXZpZGVvLXRvLXdlYnAtY29udmVydGVyLndlYnAiLCJpYXQiOjE3NjgzMDQ0NjUsImV4cCI6MjM5OTAyNDQ2NX0.1ZMyop8Rs8Q-fdoabJQN8u5BFvJEno6wEHsdC3lInr4"
+                    alt="Modelo" class="hero-image">
+                <div class="hero-overlay"></div>
+            </div>
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1 class="hero-title">
+                        <span class="title-top">PELUQUERÍA</span>
+                        <span class="title-main">COOL</span>
+                    </h1>
+                    <p class="hero-subtitle">Estilismo de Vanguardia</p>
+                    <p class="hero-description">Más de una década definiendo tendencia en Arce. Donde cada corte cuenta
+                        una historia y cada estilo refleja tu esencia única.</p>
+                    <div class="hero-ctas">
+                        <a href="#reservas" class="cta-glass"><span>Reservar Cita</span><svg class="cta-arrow"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7" />
+                            </svg></a>
+                        <a href="#salon" class="cta-solid">Descubrir</a>
+                    </div>
+                </div>
+            </div>
+            <div class="scroll-indicator">
+                <div class="scroll-mouse">
+                    <div class="scroll-wheel"></div>
+                </div>
+                <span>Scroll para explorar</span>
+            </div>
+        </section>
+    </div>
+
+    <!-- El Salón -->
+    <section id="salon" class="section section-salon">
+        <div class="salon-sticky-content">
+            <!-- Video de Fondo -->
+            <div class="salon-background-wrapper">
+                <video id="salonVideo" class="salon-video-bg" muted playsinline>
+                    <source
+                        src="https://pklskdibblefgcodcfhi.supabase.co/storage/v1/object/sign/peluqueria%20cool/8afb765d-e116-4625-aa89-ad75435498ab.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84ZjlhZWE1Mi0wYTI1LTQ5ZTctYjI5YS03ZWI0ZDYwNmExZWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZWx1cXVlcmlhIGNvb2wvOGFmYjc2NWQtZTExNi00NjI1LWFhODktYWQ3NTQzNTQ5OGFiLm1wNCIsImlhdCI6MTc2ODM0MDQ1MSwiZXhwIjoyMzk5MDYwNDUxfQ.Taek_jBddyRgYpt0IMtJie3CYySnN73e1SI9b5mGC20"
+                        type="video/mp4">
+                </video>
+                <div class="salon-overlay"></div>
+            </div>
+
+            <!-- Contenido Superpuesto -->
+            <div class="container section-content relative-z2">
+                <div class="salon-grid-overlay">
+                    <!-- Columna Izquierda: Texto -->
+                    <div class="salon-text-col fade-in-up" style="--delay: 0.1s">
+                        <h3 class="salon-heading">Un espacio diseñado para transformarte</h3>
+                        <p class="salon-text">En Cool, cada detalle está pensado para ofrecerte una experiencia
+                            sensorial
+                            única. Desde la iluminación ambiental hasta la selección musical, todo conspira para que tu
+                            visita sea un momento de auténtico bienestar.</p>
+                        <ul class="salon-features">
+                            <li class="feature-item"><span class="feature-icon">✦</span><span>Ambiente exclusivo y
+                                    minimalista</span></li>
+                            <li class="feature-item"><span class="feature-icon">✦</span><span>Productos de alta
+                                    gama</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Columna Derecha: Título + Galería -->
+                    <div class="salon-gallery-col fade-in-up" style="--delay: 0.2s">
+                        <div class="salon-header-right">
+                            <span class="section-tag">Experiencia</span>
+                            <h2 class="section-title">El Salón</h2>
+                        </div>
+                        <div class="salon-gallery">
+                            <div class="gallery-item gallery-main">
+                                <div class="gallery-placeholder"><span>Interior del Salón</span></div>
+                            </div>
+                            <div class="gallery-item gallery-small">
+                                <div class="gallery-placeholder"><span>Detalle</span></div>
+                            </div>
+                            <div class="gallery-item gallery-small">
+                                <div class="gallery-placeholder"><span>Ambiente</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Reservas -->
+    <section id="reservas" class="section section-reservas">
+        <div class="container section-content">
+            <div class="section-header">
+                <span class="section-tag">Agenda</span>
+                <h2 class="section-title">Reservas</h2>
+                <div class="section-line"></div>
+            </div>
+            <div class="reservas-content">
+                <div class="reservas-info fade-in-up">
+                    <h3 class="reservas-heading">Tu momento, tu estilo</h3>
+                    <p class="reservas-text">Reserva tu cita de forma sencilla y disfruta de una atención completamente
+                        personalizada.</p>
+                    <div class="services-grid">
+                        <div class="service-card">
+                            <div class="service-icon">✂️</div>
+                            <h4>Corte & Styling</h4>
+                            <p>Desde 35€</p>
+                        </div>
+                        <div class="service-card">
+                            <div class="service-icon">🎨</div>
+                            <h4>Coloración</h4>
+                            <p>Desde 55€</p>
+                        </div>
+                        <div class="service-card">
+                            <div class="service-icon">💫</div>
+                            <h4>Tratamientos</h4>
+                            <p>Desde 40€</p>
+                        </div>
+                        <div class="service-card">
+                            <div class="service-icon">👑</div>
+                            <h4>Experiencia VIP</h4>
+                            <p>Desde 120€</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="reservas-form-wrapper fade-in-up" style="--delay: 0.2s">
+                    <form class="reservas-form" id="reservaForm">
+                        <div class="form-group"><label for="nombre">Nombre</label><input type="text" id="nombre"
+                                name="nombre" required placeholder="Tu nombre"></div>
+                        <div class="form-row">
+                            <div class="form-group"><label for="fecha">Fecha</label><input type="date" id="fecha"
+                                    name="fecha" required></div>
+                            <div class="form-group"><label for="hora">Hora</label><select id="hora" name="hora"
+                                    required>
+                                    <option value="">Seleccionar</option>
+                                    <option value="10:00">10:00</option>
+                                    <option value="11:00">11:00</option>
+                                    <option value="12:00">12:00</option>
+                                    <option value="16:00">16:00</option>
+                                    <option value="17:00">17:00</option>
+                                    <option value="18:00">18:00</option>
+                                    <option value="19:00">19:00</option>
+                                </select></div>
+                        </div>
+                        <div class="form-group"><label for="servicio">Servicio</label><select id="servicio"
+                                name="servicio" required>
+                                <option value="">Seleccionar</option>
+                                <option value="corte">Corte & Styling</option>
+                                <option value="color">Coloración</option>
+                                <option value="tratamiento">Tratamiento</option>
+                                <option value="vip">Experiencia VIP</option>
+                            </select></div>
+                        <div class="form-group"><label for="telefono">Teléfono</label><input type="tel" id="telefono"
+                                name="telefono" required placeholder="+34 600 000 000"></div>
+                        <button type="submit" class="form-submit"><span>Solicitar Cita</span><svg viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7" />
+                            </svg></button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Staff -->
+    <section id="staff" class="section section-staff">
+        <div class="container section-content">
+            <div class="section-header">
+                <span class="section-tag">Equipo</span>
+                <h2 class="section-title">Staff</h2>
+                <div class="section-line"></div>
+            </div>
+            <p class="staff-intro fade-in-up">Conoce a los artistas detrás de cada transformación.</p>
+            <div class="staff-grid">
+                <div class="staff-card fade-in-up" style="--delay: 0.1s">
+                    <div class="staff-image">
+                        <div class="staff-placeholder"><span>AM</span></div>
+                    </div>
+                    <div class="staff-info">
+                        <h4>Andrea Martínez</h4><span class="staff-role">Directora Creativa</span>
+                        <p>15 años de experiencia. Especialista en cortes de vanguardia.</p>
+                    </div>
+                </div>
+                <div class="staff-card fade-in-up" style="--delay: 0.2s">
+                    <div class="staff-image">
+                        <div class="staff-placeholder"><span>CR</span></div>
+                    </div>
+                    <div class="staff-info">
+                        <h4>Carlos Ruiz</h4><span class="staff-role">Estilista Senior</span>
+                        <p>Experto en texturizado y barbería. Formación en París.</p>
+                    </div>
+                </div>
+                <div class="staff-card fade-in-up" style="--delay: 0.3s">
+                    <div class="staff-image">
+                        <div class="staff-placeholder"><span>LG</span></div>
+                    </div>
+                    <div class="staff-info">
+                        <h4>Laura García</h4><span class="staff-role">Colorista</span>
+                        <p>Maestra del balayage. Certificada Wella Master.</p>
+                    </div>
+                </div>
+                <div class="staff-card fade-in-up" style="--delay: 0.4s">
+                    <div class="staff-image">
+                        <div class="staff-placeholder"><span>MV</span></div>
+                    </div>
+                    <div class="staff-info">
+                        <h4>Miguel Vega</h4><span class="staff-role">Estilista</span>
+                        <p>Especialista en transformaciones radicales.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Lookbook -->
+    <section id="lookbook" class="section section-lookbook">
+        <div class="container section-content">
+            <div class="section-header">
+                <span class="section-tag">Inspiración</span>
+                <h2 class="section-title">Lookbook 2026</h2>
+                <div class="section-line"></div>
+            </div>
+            <p class="lookbook-intro fade-in-up">Descubre las tendencias que definirán el año.</p>
+            <div class="lookbook-gallery">
+                <div class="lookbook-item fade-in-up" style="--delay: 0.1s">
+                    <div class="lookbook-image">
+                        <div class="lookbook-placeholder"><span>01</span></div>
+                    </div>
+                    <div class="lookbook-overlay">
+                        <h4>Midnight Silk</h4>
+                        <p>Corte asimétrico con textura fluida</p>
+                    </div>
+                </div>
+                <div class="lookbook-item fade-in-up" style="--delay: 0.15s">
+                    <div class="lookbook-image">
+                        <div class="lookbook-placeholder"><span>02</span></div>
+                    </div>
+                    <div class="lookbook-overlay">
+                        <h4>Urban Eclipse</h4>
+                        <p>Degradado con acentos metálicos</p>
+                    </div>
+                </div>
+                <div class="lookbook-item fade-in-up" style="--delay: 0.2s">
+                    <div class="lookbook-image">
+                        <div class="lookbook-placeholder"><span>03</span></div>
+                    </div>
+                    <div class="lookbook-overlay">
+                        <h4>Neo Classic</h4>
+                        <p>Elegancia atemporal reinventada</p>
+                    </div>
+                </div>
+                <div class="lookbook-item fade-in-up" style="--delay: 0.25s">
+                    <div class="lookbook-image">
+                        <div class="lookbook-placeholder"><span>04</span></div>
+                    </div>
+                    <div class="lookbook-overlay">
+                        <h4>Velvet Storm</h4>
+                        <p>Ondas dramáticas con volumen</p>
+                    </div>
+                </div>
+                <div class="lookbook-item fade-in-up" style="--delay: 0.3s">
+                    <div class="lookbook-image">
+                        <div class="lookbook-placeholder"><span>05</span></div>
+                    </div>
+                    <div class="lookbook-overlay">
+                        <h4>Chrome Fade</h4>
+                        <p>Transiciones de color ultramodernas</p>
+                    </div>
+                </div>
+                <div class="lookbook-item fade-in-up" style="--delay: 0.35s">
+                    <div class="lookbook-image">
+                        <div class="lookbook-placeholder"><span>06</span></div>
+                    </div>
+                    <div class="lookbook-overlay">
+                        <h4>Soft Rebellion</h4>
+                        <p>Pixie texturizado con actitud</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contacto -->
+    <section id="contacto" class="section section-contacto">
+        <div class="container section-content">
+            <div class="section-header">
+                <span class="section-tag">Encuéntranos</span>
+                <h2 class="section-title">Contacto</h2>
+                <div class="section-line"></div>
+            </div>
+            <div class="contacto-grid">
+                <div class="contacto-info fade-in-up">
+                    <div class="contacto-item">
+                        <div class="contacto-icon">📍</div>
+                        <div class="contacto-text">
+                            <h4>Ubicación</h4>
+                            <p>Bo. San Julián, 20<br>39478 Arce, Cantabria</p>
+                        </div>
+                    </div>
+                    <div class="contacto-item">
+                        <div class="contacto-icon">📞</div>
+                        <div class="contacto-text">
+                            <h4>Teléfono</h4>
+                            <p>942 589 703</p>
+                        </div>
+                    </div>
+                    <div class="contacto-item">
+                        <div class="contacto-icon">✉️</div>
+                        <div class="contacto-text">
+                            <h4>Email</h4>
+                            <p>hola@peluqueriacool.es</p>
+                        </div>
+                    </div>
+                    <div class="contacto-item">
+                        <div class="contacto-icon">🕐</div>
+                        <div class="contacto-text">
+                            <h4>Horario</h4>
+                            <details class="horario-dropdown">
+                                <summary>Ver Horario Completo</summary>
+                                <ul class="horario-list">
+                                    <li><span>Lunes:</span> <span>16:00 – 20:00</span></li>
+                                    <li><span>Martes:</span> <span>10:00–13:00, 16:00–20:00</span></li>
+                                    <li><span>Miércoles:</span> <span>10:00–13:00, 16:00–20:00</span></li>
+                                    <li><span>Jueves:</span> <span>10:00–13:00, 16:00–20:00</span></li>
+                                    <li><span>Viernes:</span> <span>10:00 – 19:30</span></li>
+                                    <li><span>Sábado:</span> <span>09:00 – 13:30</span></li>
+                                    <li><span>Domingo:</span> <span>Cerrado</span></li>
+                                </ul>
+                            </details>
+                        </div>
+                    </div>
+                    <div class="social-links">
+                        <a href="#" class="social-link" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="1.5">
+                                <rect x="2" y="2" width="20" height="20" rx="5" />
+                                <circle cx="12" cy="12" r="4" />
+                                <circle cx="18" cy="6" r="1.5" />
+                            </svg></a>
+                        <a href="#" class="social-link" aria-label="Facebook"><svg viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="1.5">
+                                <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+                            </svg></a>
+                        <a href="#" class="social-link" aria-label="WhatsApp"><svg viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="1.5">
+                                <path
+                                    d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                            </svg></a>
+                    </div>
+                </div>
+                <div class="contacto-map fade-in-up" style="--delay: 0.2s">
+                    <iframe
+                        src="https://maps.google.com/maps?q=Bo.+San+Juli%C3%A1n,+20,+39478+Arce,+Cantabria&t=&z=17&ie=UTF8&iwloc=&output=embed"
+                        width="100%" height="100%" style="border:0; filter: grayscale(100%) invert(92%) contrast(83%);"
+                        allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade">
+                    </iframe>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">COOL</div>
+                <p class="footer-tagline">Estilismo de Vanguardia desde 2014</p>
+                <div class="footer-divider"></div>
+                <p class="footer-copy">&copy; 2026 Peluquería Cool. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+    <script src="script.js"></script>
+</body>
+
+</html>
