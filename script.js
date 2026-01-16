@@ -1,450 +1,344 @@
 /**
- * Peluquería Cool - Premium One-Page Website
- * Sistema de Video/Animación controlado por scroll
- * 
- * IMPORTANTE: Para el efecto perfecto de "pausar y continuar",
- * usa un archivo de video (.mp4 o .webm) en lugar de WebP.
- * Con video, el currentTime se vincula exactamente al scroll.
+ * Peluquería Cool - Scrollytelling System
+ * Implementación eficiente usando secuencia de imágenes en Canvas (Zero Dependencies)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // ===== ELEMENTOS DEL DOM =====
-    const loader = document.getElementById('loader');
-    const navbar = document.getElementById('navbar');
-    const navToggle = document.getElementById('navToggle');
-    const navMenu = document.getElementById('navMenu');
-    const navLinks = document.querySelectorAll('.nav-link');
-    const heroVideo = document.getElementById('heroVideo');
-    const heroImage = document.getElementById('heroImage');
-    const heroWrapper = document.querySelector('.hero-wrapper');
-    const fadeElements = document.querySelectorAll('.fade-in-up');
-    const cursorDot = document.querySelector('.cursor-dot');
-    const cursorRing = document.querySelector('.cursor-ring');
-
-    // ===== CURSOR PERSONALIZADO =====
-    if (cursorDot && cursorRing) {
-        let mouseX = 0;
-        let mouseY = 0;
-        let ringX = 0;
-        let ringY = 0;
-
-        document.addEventListener('mousemove', (e) => {
-            mouseX = e.clientX;
-            mouseY = e.clientY;
-
-            // Punto sigue instantáneo
-            cursorDot.style.transform = `translate(${mouseX}px, ${mouseY}px) translate(-50%, -50%)`;
-        });
-
-        // Loop de animación para el anillo (suavizado)
-        const animateRing = () => {
-            // Lerp (interpolación lineal) para suavidad
-            ringX += (mouseX - ringX) * 0.15;
-            ringY += (mouseY - ringY) * 0.15;
-
-            cursorRing.style.transform = `translate(${ringX}px, ${ringY}px) translate(-50%, -50%)`;
-            requestAnimationFrame(animateRing);
-        };
-        animateRing();
-
-        // Efecto hover en elementos interactivos
-        const interactiveElements = document.querySelectorAll('a, button, .nav-toggle, .cta-glass, .cta-solid, input, select');
-        interactiveElements.forEach(el => {
-            el.addEventListener('mouseenter', () => cursorRing.classList.add('hover'));
-            el.addEventListener('mouseleave', () => cursorRing.classList.remove('hover'));
-        });
-    }
-
     // ===== CONFIGURACIÓN =====
-    const VIDEO_DURATION = 8; // Duración del video en segundos
-    const USE_VIDEO = heroVideo && heroVideo.querySelector('source'); // Detectar si hay video
-
-    // ===== LOADER =====
-    const hideLoader = () => {
-        setTimeout(() => {
-            loader.classList.add('hidden');
-            document.body.style.overflow = 'auto';
-        }, 2400);
+    const HERO_CONFIG = {
+        path: 'assets/hero-sequence/split-hero/',
+        count: 192,
+        ext: 'gif'
     };
 
-    document.body.style.overflow = 'hidden';
+    // SALON - Secuencia de 192 frames
+    const SALON_CONFIG = {
+        path: 'assets/salon-sequence/split-salon/',
+        count: 192,
+        ext: 'gif'
+    };
 
-    if (document.readyState === 'complete') {
-        hideLoader();
-    } else {
-        window.addEventListener('load', hideLoader);
+    // ===== CLASE DE SECUENCIA DE IMÁGENES =====
+    class ImageSequence {
+        constructor(canvasId, config) {
+            this.canvas = document.getElementById(canvasId);
+            if (!this.canvas) return;
+
+            this.ctx = this.canvas.getContext('2d');
+            this.config = config;
+            this.images = [];
+            this.loadedCount = 0;
+            this.isReady = false;
+            this.lastFrameIndex = -1;
+
+            this.init();
+        }
+
+        init() {
+            this.resize();
+            window.addEventListener('resize', () => this.resize());
+            this.loadImages();
+        }
+
+        loadImages() {
+            console.log(`🚀 Iniciando carga de ${this.config.count} frames para ${this.canvas.id}`);
+
+            for (let i = 1; i <= this.config.count; i++) {
+                const img = new Image();
+                // Formato 0001, 0002, etc.
+                const num = i.toString().padStart(4, '0');
+                img.src = `${this.config.path}${num}.${this.config.ext}`;
+
+                img.onload = () => {
+                    this.loadedCount++;
+                    if (this.loadedCount === this.config.count) {
+                        console.log(`✅ Carga completa: ${this.canvas.id}`);
+                        this.isReady = true;
+                        this.render(0); // Renderizar primer frame
+
+                        // Ocultar imagen fallback si existe
+                        const fallback = document.querySelector(`.hero-image`);
+                        if (fallback && this.canvas.id === 'heroCanvas') fallback.style.opacity = '0';
+                    }
+                };
+
+                img.onerror = () => {
+                    // Silenciosamente ignorar o loguear si faltan frames
+                    // console.warn(`Frame faltante: ${img.src}`);
+                };
+
+                this.images.push(img);
+            }
+        }
+
+        resize() {
+            if (!this.canvas) return;
+            const parent = this.canvas.parentElement;
+            this.canvas.width = parent.clientWidth;
+            this.canvas.height = parent.clientHeight;
+            this.render(this.lastProgress || 0); // Re-renderizar
+        }
+
+        /**
+         * Renderiza el frame basado en el progreso (0.0 a 1.0)
+         */
+        render(progress) {
+            this.lastProgress = progress;
+            if (!this.images.length) return;
+
+            // Mapear progreso a índice de frame (0-based para el array, pero images son 1-indexed)
+            let index = Math.floor(progress * (this.config.count - 1));
+            index = Math.max(0, Math.min(this.config.count - 1, index));
+
+            // SIEMPRE actualizar lastFrameIndex para tracking
+            this.lastFrameIndex = index;
+
+            // Si aún no están cargadas todas, intentar mostrar lo que tengamos o el frame específico
+            const img = this.images[index];
+
+            // Verificar que la imagen existe, está completa y NO está rota
+            if (!img || !img.complete || img.naturalWidth === 0) return;
+
+            // Lógica "object-fit: cover" para Canvas
+            const fitCover = (img, canvas) => {
+                const imgRatio = img.width / img.height;
+                const canvasRatio = canvas.width / canvas.height;
+                let drawW, drawH, offsetX, offsetY;
+
+                if (canvasRatio > imgRatio) {
+                    drawW = canvas.width;
+                    drawH = canvas.width / imgRatio;
+                    offsetX = 0;
+                    offsetY = (canvas.height - drawH) / 2;
+                } else {
+                    drawW = canvas.height * imgRatio;
+                    drawH = canvas.height;
+                    offsetX = (canvas.width - drawW) / 2;
+                    offsetY = 0;
+                }
+
+                return { x: offsetX, y: offsetY, w: drawW, h: drawH };
+            };
+
+            const params = fitCover(img, this.canvas);
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.drawImage(img, params.x, params.y, params.w, params.h);
+        }
     }
 
-    // ===== SISTEMA DE VIDEO CON VELOCIDAD VARIABLE =====
-    // La velocidad del video se ajusta según la velocidad del scroll
-    if (USE_VIDEO) {
-        // Ocultar imagen fallback
-        if (heroImage) heroImage.style.display = 'none';
+    // ===== INICIALIZAR SECUENCIAS =====
+    const heroSequence = new ImageSequence('heroCanvas', HERO_CONFIG);
+    const salonSequence = new ImageSequence('salonCanvas', SALON_CONFIG);
 
-        // Configurar video
-        heroVideo.pause();
-        heroVideo.currentTime = 0;
+    // ===== ELEMENTOS GENERALES =====
+    const navbar = document.getElementById('navbar');
+    const heroWrapper = document.querySelector('.hero-wrapper');
+    const salonSection = document.getElementById('salon');
 
-        let scrollTimeout = null;
-        let isPlaying = false;
-        let lastScrollY = window.scrollY;
-        let lastScrollTime = performance.now();
-        let currentPlaybackRate = 1.0;
+    // ===== LOOP DE ANIMACIÓN CENTRALIZADO (requestAnimationFrame) =====
+    // Usamos esto en lugar de eventos 'scroll' separados para rendimiento
+    let lastScrollY = window.scrollY;
 
-        const MIN_RATE = 0.5;
-        const MAX_RATE = 3.0;
-        const BASE_VELOCITY = 500; // pixels/segundo como referencia
+    const animate = () => {
+        const scrollY = window.scrollY;
+        const layoutHeight = document.documentElement.scrollHeight - window.innerHeight;
 
-        const playVideo = () => {
-            if (!isPlaying && heroVideo.paused) {
-                heroVideo.play().catch(() => { });
-                isPlaying = true;
+        // 1. HERO SCROLL
+        if (heroWrapper) {
+            // El heroWrapper tiene altura 480vh y contiene un sticky de 100vh.
+            // El sticky se "pega" cuando top=0 y "suelta" cuando bottom=viewport.
+            // Para calcular el progreso usamos getBoundingClientRect para precisión.
+
+            const wrapperHeight = heroWrapper.offsetHeight;
+            const viewportHeight = window.innerHeight;
+            const stickyDistance = wrapperHeight - viewportHeight; // Cuánto podemos scrollear dentro del sticky
+
+            // Posición del wrapper respecto al viewport
+            const rect = heroWrapper.getBoundingClientRect();
+
+            // rect.top = 0 cuando el sticky empieza a pegarse
+            // rect.top = -(stickyDistance) cuando el sticky se suelta
+
+            // Progreso: 0 cuando rect.top >= 0, 1 cuando rect.top <= -stickyDistance
+            // Esto funciona tanto hacia abajo como hacia arriba
+
+            let heroProgress = -rect.top / stickyDistance;
+            heroProgress = Math.max(0, Math.min(1, heroProgress));
+
+            heroSequence.render(heroProgress);
+
+            // Efecto Cascada Texto Hero
+            updateHeroCascade(heroProgress);
+        }
+
+        // 2. SALON SCROLL
+        if (salonSection) {
+            const rect = salonSection.getBoundingClientRect();
+            const start = rect.top; // Distancia desde el viewport top
+            const height = salonSection.offsetHeight - window.innerHeight;
+
+            // Calcular progreso cuando la sección entra en vista y se fija
+            // La sección Salon es sticky. 
+            // Progreso 0 cuando rect.top == 0 (empieza el sticky)
+            // Progreso 1 cuando terminamos de scrollear la sección
+
+            // Usamos la posición global para mayor estabilidad
+            const salonTopAbsolute = salonSection.offsetTop;
+            const scrollRelative = scrollY - salonTopAbsolute;
+
+            let salonProgress = scrollRelative / height;
+            salonProgress = Math.max(0, Math.min(1, salonProgress));
+
+            // Solo renderizar si está visible o cerca
+            if (scrollY > salonTopAbsolute - window.innerHeight && scrollY < salonTopAbsolute + salonSection.offsetHeight) {
+                salonSequence.render(salonProgress);
+                updateSalonParallax(salonProgress);
             }
-        };
+        }
 
-        const pauseVideo = () => {
-            if (isPlaying && !heroVideo.paused) {
-                heroVideo.pause();
-                isPlaying = false;
-            }
-        };
+        // 3. NAVBAR
+        if (scrollY > 50) navbar.classList.add('scrolled');
+        else navbar.classList.remove('scrolled');
 
-        const updatePlaybackRate = (velocity) => {
-            // Calcular rate proporcional a la velocidad del scroll
-            let rate = Math.abs(velocity) / BASE_VELOCITY;
-            rate = Math.max(MIN_RATE, Math.min(MAX_RATE, rate));
+        lastScrollY = scrollY;
+        requestAnimationFrame(animate);
+    };
 
-            // Suavizar el cambio de velocidad
-            currentPlaybackRate += (rate - currentPlaybackRate) * 0.3;
-            heroVideo.playbackRate = currentPlaybackRate;
-        };
+    // Iniciar loop
+    requestAnimationFrame(animate);
 
-        const onScroll = () => {
-            const now = performance.now();
-            const deltaTime = (now - lastScrollTime) / 1000; // en segundos
-            const deltaScroll = Math.abs(window.scrollY - lastScrollY);
-            const velocity = deltaTime > 0 ? deltaScroll / deltaTime : 0;
 
-            lastScrollY = window.scrollY;
-            lastScrollTime = now;
+    // ===== FUNCIONES AUXILIARES DE ANIMACIÓN =====
 
-            // Verificar si estamos en el hero
-            const heroRect = heroWrapper.getBoundingClientRect();
-            const inHero = heroRect.top <= 0 && heroRect.bottom > window.innerHeight;
-
-            if (inHero) {
-                updatePlaybackRate(velocity);
-                playVideo();
-
-                // Pausar después de dejar de hacer scroll
-                clearTimeout(scrollTimeout);
-                scrollTimeout = setTimeout(pauseVideo, 150);
-            } else if (heroRect.top > 0) {
-                // Antes del hero - reiniciar
-                heroVideo.currentTime = 0;
-                pauseVideo();
-            } else {
-                // Después del hero - mantener al final
-                pauseVideo();
-            }
-        };
-
-        window.addEventListener('scroll', onScroll, { passive: true });
-
-        // Cuando el video termina, mantenerlo en el último frame
-        heroVideo.addEventListener('ended', () => {
-            heroVideo.currentTime = heroVideo.duration - 0.1;
-            pauseVideo();
-        });
-
-        console.log('🎬 Modo VIDEO con velocidad variable activado');
-    }
-
-    // ===== EFECTO CASCADA EN TEXTO DEL HERO =====
-    // Texto empieza invisible/arriba y APARECE conforme se hace scroll
+    // Hero Text Cascade
     const heroTitle = document.querySelector('.hero-title');
     const heroSubtitle = document.querySelector('.hero-subtitle');
     const heroDescription = document.querySelector('.hero-description');
     const heroCtas = document.querySelector('.hero-ctas');
 
-    const cascadeElements = [
-        { el: heroTitle, threshold: 0.02 },      // Aparece primero
-        { el: heroSubtitle, threshold: 0.05 },   // Aparece segundo
-        { el: heroDescription, threshold: 0.08 }, // Aparece tercero
-        { el: heroCtas, threshold: 0.12 }         // Aparece último
-    ];
+    const initializeStyles = (el) => { if (el) { el.style.opacity = '0'; el.style.transform = 'translateY(-30px)'; } }
+    [heroTitle, heroSubtitle, heroDescription, heroCtas].forEach(initializeStyles);
 
-    // Estado inicial: ocultos y desplazados hacia arriba
-    cascadeElements.forEach(({ el }) => {
-        if (el) {
-            el.style.transform = 'translateY(-50px)';
-            el.style.opacity = '0';
-        }
-    });
-
-    const updateCascade = () => {
-        if (!heroWrapper) return;
-
-        const heroRect = heroWrapper.getBoundingClientRect();
-        const scrollProgress = Math.max(0, -heroRect.top / (heroWrapper.offsetHeight - window.innerHeight));
-
-        cascadeElements.forEach(({ el, threshold }) => {
+    function updateHeroCascade(progress) {
+        // Umbrales para que aparezcan secuencialmente al scrollear
+        // Ahora aparecen TARDE, casi al final del scroll (60% - 90%)
+        const animateElement = (el, threshold) => {
             if (!el) return;
+            // Normalizar progreso para este elemento (empieza en threshold, dura 0.10)
+            let localProgress = (progress - threshold) / 0.10;
+            localProgress = Math.max(0, Math.min(1, localProgress));
 
-            // Calcular progreso para este elemento
-            const elementProgress = Math.min(1, Math.max(0, (scrollProgress - threshold) / 0.08));
-
-            // De -50px a 0px, de opacity 0 a 1
-            const translateY = -50 + (elementProgress * 50);
-            const opacity = elementProgress;
-
-            el.style.transform = `translateY(${translateY}px)`;
-            el.style.opacity = opacity;
-        });
-    };
-
-    window.addEventListener('scroll', updateCascade, { passive: true });
-
-    // ===== SCROLLYTELLING: EL SALÓN =====
-    const salonSection = document.getElementById('salon');
-    const salonVideo = document.getElementById('salonVideo');
-    // Nuevas Referencias para Cascada/Parallax
-    const salonTextCol = document.querySelector('.salon-text-col');
-    const salonGalleryCol = document.querySelector('.salon-gallery-col');
-
-    if (salonSection && salonVideo) {
-        console.log('🎬 Iniciando Scrollytelling para El Salón');
-
-        salonVideo.pause();
-        salonVideo.currentTime = 0;
-
-        let scrollTimeout = null;
-        let isPlaying = false;
-        let lastScrollY = window.scrollY;
-        let lastScrollTime = performance.now();
-        let currentPlaybackRate = 1.0;
-
-        // Reset inicial de estilos para cascada
-        if (salonTextCol) { salonTextCol.style.opacity = '0'; salonTextCol.style.transform = 'translateY(20px)'; }
-        if (salonGalleryCol) { salonGalleryCol.style.opacity = '0'; salonGalleryCol.style.transform = 'translateY(60px)'; }
-
-        const MIN_RATE = 0.5;
-        const MAX_RATE = 3.0;
-        const BASE_VELOCITY = 500;
-
-        const playSalonVideo = () => {
-            if (!isPlaying && salonVideo.paused) {
-                salonVideo.play().catch(() => { });
-                isPlaying = true;
-            }
+            el.style.opacity = localProgress;
+            el.style.transform = `translateY(${-30 * (1 - localProgress)}px)`;
         };
 
-        const pauseSalonVideo = () => {
-            if (isPlaying && !salonVideo.paused) {
-                salonVideo.pause();
-                isPlaying = false;
-            }
-        };
-
-        const updateSalonRate = (velocity) => {
-            let rate = Math.abs(velocity) / BASE_VELOCITY;
-            rate = Math.max(MIN_RATE, Math.min(MAX_RATE, rate));
-            currentPlaybackRate += (rate - currentPlaybackRate) * 0.3;
-            salonVideo.playbackRate = currentPlaybackRate;
-        };
-
-        const onSalonScroll = () => {
-            const now = performance.now();
-            const deltaTime = (now - lastScrollTime) / 1000;
-            const deltaScroll = Math.abs(window.scrollY - lastScrollY);
-            const velocity = deltaTime > 0 ? deltaScroll / deltaTime : 0;
-
-            // Verificar si estamos en la sección Salón
-            const rect = salonSection.getBoundingClientRect();
-
-            // Calculo para Parallax y Cascada
-            // El contenido se "pega" cuando rect.top <= 0
-            // Usamos un pequeño offset para empezar la animación un poco antes o justo al llegar
-            const scrollDistance = rect.height - window.innerHeight;
-            const stickyProgress = Math.min(1, Math.max(0, -rect.top / scrollDistance));
-
-            // Lógica de Visibilidad Global (para reproducir video)
-            const inSection = rect.top <= window.innerHeight && rect.bottom >= 0;
-
-            if (inSection) {
-                updateSalonRate(velocity);
-                playSalonVideo();
-
-                // === EFECTO DE CASCADA Y PARALLAX ===
-                // 1. Opacidad (Aparecer rápido al inicio del sticky)
-                const opacity = Math.min(1, stickyProgress * 8); // Aparece en el primer 12% del scroll
-
-                // 2. Movimiento Parallax (Se mueven diferente mientras scrolleas)
-                // Texto se mueve poco, Galería se mueve más (profundidad)
-                const textY = 20 - (stickyProgress * 40); // De +20px a -20px
-                const galleryY = 60 - (stickyProgress * 120); // De +60px a -60px
-
-                if (salonTextCol) {
-                    salonTextCol.style.opacity = opacity;
-                    salonTextCol.style.transform = `translateY(${textY}px)`;
-                }
-
-                if (salonGalleryCol) {
-                    salonGalleryCol.style.opacity = opacity;
-                    salonGalleryCol.style.transform = `translateY(${galleryY}px)`;
-                }
-
-                clearTimeout(scrollTimeout);
-                scrollTimeout = setTimeout(pauseSalonVideo, 150);
-            } else {
-                pauseSalonVideo();
-            }
-
-            lastScrollY = window.scrollY;
-            lastScrollTime = now;
-        };
-
-        window.addEventListener('scroll', onSalonScroll, { passive: true });
+        // Umbrales personalizados según preferencia
+        animateElement(heroTitle, 0.38);       // Título aparece al 38%
+        animateElement(heroSubtitle, 0.60);    // Subtítulo al 60%
+        animateElement(heroDescription, 0.78); // Descripción al 78%
+        animateElement(heroCtas, 0.86);        // Botones al 86%
     }
 
-    // ===== FALLBACK: SISTEMA WEBP (LIMITADO) =====
-    if (!USE_VIDEO && heroImage) {
-        console.log('🖼️ Modo WebP activado (limitado) - Considera usar video para mejor experiencia');
+    // Salon Parallax
+    const salonText = document.querySelector('.salon-text-col');
+    const salonGallery = document.querySelector('.salon-gallery-col');
 
-        // Variables para control de WebP
-        let isScrolling = false;
-        let scrollTimeout = null;
-        let frozenFrame = null;
-
-        // Crear canvas para congelar frames
-        const freezeCanvas = document.createElement('canvas');
-        freezeCanvas.style.cssText = `
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            object-fit: cover;
-            display: none;
-            pointer-events: none;
-        `;
-        heroImage.parentElement.insertBefore(freezeCanvas, heroImage.nextSibling);
-
-        const freezeCurrentFrame = () => {
-            if (!heroImage.complete || heroImage.naturalWidth === 0) return;
-
-            try {
-                freezeCanvas.width = heroImage.naturalWidth;
-                freezeCanvas.height = heroImage.naturalHeight;
-                const ctx = freezeCanvas.getContext('2d');
-                ctx.drawImage(heroImage, 0, 0);
-
-                // Mostrar canvas congelado, ocultar animación
-                freezeCanvas.style.display = 'block';
-                heroImage.style.visibility = 'hidden';
-            } catch (e) {
-                console.warn('No se pudo congelar frame:', e);
-            }
-        };
-
-        const unfreezeAnimation = () => {
-            // Ocultar canvas, mostrar animación
-            freezeCanvas.style.display = 'none';
-            heroImage.style.visibility = 'visible';
-        };
-
-        const handleScroll = () => {
-            if (!isScrolling) {
-                isScrolling = true;
-                unfreezeAnimation();
-            }
-
-            clearTimeout(scrollTimeout);
-            scrollTimeout = setTimeout(() => {
-                isScrolling = false;
-                freezeCurrentFrame();
-            }, 100);
-        };
-
-        window.addEventListener('scroll', handleScroll, { passive: true });
-
-        // Congelar al inicio después del loader
-        setTimeout(freezeCurrentFrame, 3000);
-    }
-
-    // ===== NAVBAR SCROLL EFFECT =====
-    const handleNavbarScroll = () => {
-        if (window.scrollY > 100) {
-            navbar.classList.add('scrolled');
-        } else {
-            navbar.classList.remove('scrolled');
+    function updateSalonParallax(progress) {
+        if (salonText) {
+            // Fade in + ligero movimiento
+            let opacity = Math.min(1, progress * 5); // Aparece rápido
+            salonText.style.opacity = opacity;
+            salonText.style.transform = `translateY(${(1 - opacity) * 40}px)`;
         }
-    };
 
-    window.addEventListener('scroll', handleNavbarScroll, { passive: true });
+        if (salonGallery) {
+            let opacity = Math.min(1, progress * 5);
+            // Galería se mueve diferente para parallax
+            salonGallery.style.opacity = opacity;
+            salonGallery.style.transform = `translateY(${(1 - opacity) * 80}px)`;
+        }
+    }
 
-    // ===== MOBILE MENU TOGGLE =====
-    navToggle.addEventListener('click', () => {
-        navToggle.classList.toggle('active');
-        navMenu.classList.toggle('active');
-    });
 
-    navLinks.forEach(link => {
-        link.addEventListener('click', () => {
-            navToggle.classList.remove('active');
-            navMenu.classList.remove('active');
+    // ===== UTILS NO-CANVAS (Loader, Cursor, Forms) =====
+
+    // Loader
+    const loader = document.getElementById('loader');
+    if (loader) {
+        setTimeout(() => {
+            loader.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+            // Trigger inicial
+        }, 2000);
+    }
+
+    // Mobile Nav
+    const navToggle = document.getElementById('navToggle');
+    const navMenu = document.getElementById('navMenu');
+    if (navToggle) {
+        navToggle.addEventListener('click', () => {
+            navToggle.classList.toggle('active');
+            navMenu.classList.toggle('active');
         });
-    });
+    }
 
-    // ===== SMOOTH SCROLL =====
+    // Smooth Scroll Links
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
             e.preventDefault();
             const targetId = this.getAttribute('href');
-            const targetElement = document.querySelector(targetId);
-
-            if (targetElement) {
-                const navbarHeight = navbar.offsetHeight;
-                const targetPosition = targetElement.getBoundingClientRect().top + window.scrollY - navbarHeight;
-
+            const target = document.querySelector(targetId);
+            if (target) {
                 window.scrollTo({
-                    top: targetPosition,
+                    top: target.offsetTop,
                     behavior: 'smooth'
                 });
+                // Cerrar menú si está abierto
+                navToggle.classList.remove('active');
+                navMenu.classList.remove('active');
             }
         });
     });
 
-    // ===== ACTIVE NAV LINK =====
-    const sections = document.querySelectorAll('section[id]');
-
-    const updateActiveNavLink = () => {
-        const scrollPos = window.scrollY + navbar.offsetHeight + 100;
-
-        // Ajuste para hero largo (480vh -> ~4.8 pantallas)
-        // El contenido real empieza después de 480vh de scroll virtual
-        if (window.scrollY < window.innerHeight * 4.3) {
-            navLinks.forEach(link => link.classList.remove('active'));
-            return;
-        }
-
-        sections.forEach(section => {
-            const sectionTop = section.offsetTop;
-            const sectionHeight = section.offsetHeight;
-            const sectionId = section.getAttribute('id');
-
-            if (scrollPos >= sectionTop && scrollPos < sectionTop + sectionHeight) {
-                navLinks.forEach(link => {
-                    link.classList.remove('active');
-                    if (link.getAttribute('href') === `#${sectionId}`) {
-                        link.classList.add('active');
-                    }
-                });
-            }
+    // Form
+    const form = document.getElementById('reservaForm');
+    if (form) {
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const btn = form.querySelector('button');
+            const original = btn.innerHTML;
+            btn.innerHTML = '¡Enviado!';
+            btn.style.background = '#4CAF50';
+            setTimeout(() => {
+                btn.innerHTML = original;
+                btn.style.background = '';
+                form.reset();
+            }, 3000);
         });
-    };
+    }
 
-    window.addEventListener('scroll', updateActiveNavLink, { passive: true });
+    // Cursor
+    const cursorDot = document.querySelector('.cursor-dot');
+    const cursorRing = document.querySelector('.cursor-ring');
+    if (cursorDot && cursorRing) {
+        let mouseX = 0, mouseY = 0;
+        let ringX = 0, ringY = 0;
+        window.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
 
-    // ===== FADE IN ANIMATIONS =====
+        const updateCursor = () => {
+            cursorDot.style.transform = `translate(${mouseX}px, ${mouseY}px) translate(-50%, -50%)`;
+
+            ringX += (mouseX - ringX) * 0.15;
+            ringY += (mouseY - ringY) * 0.15;
+            cursorRing.style.transform = `translate(${ringX}px, ${ringY}px) translate(-50%, -50%)`;
+            requestAnimationFrame(updateCursor);
+        };
+        updateCursor();
+    }
+
+    // ===== FADE IN ANIMATIONS (IntersectionObserver) =====
+    const fadeElements = document.querySelectorAll('.fade-in-up');
+
     const observerOptions = {
         root: null,
         rootMargin: '0px 0px -100px 0px',
@@ -462,27 +356,5 @@ document.addEventListener('DOMContentLoaded', () => {
     const observer = new IntersectionObserver(observerCallback, observerOptions);
     fadeElements.forEach(el => observer.observe(el));
 
-    // ===== FORMULARIO DE RESERVAS =====
-    const reservaForm = document.getElementById('reservaForm');
-
-    if (reservaForm) {
-        reservaForm.addEventListener('submit', function (e) {
-            e.preventDefault();
-            const submitBtn = this.querySelector('.form-submit');
-            const originalText = submitBtn.innerHTML;
-
-            submitBtn.innerHTML = '<span>¡Solicitud Enviada!</span>';
-            submitBtn.style.background = '#2ecc71';
-            submitBtn.disabled = true;
-
-            setTimeout(() => {
-                submitBtn.innerHTML = originalText;
-                submitBtn.style.background = '';
-                submitBtn.disabled = false;
-                this.reset();
-            }, 3000);
-        });
-    }
-
-    console.log('✨ Cool System V3 - Scroll-Controlled Animation Ready');
+    console.log('✨ Cool System V4 - Scrollytelling Ready');
 });

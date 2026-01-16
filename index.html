@@ -57,16 +57,11 @@
     <div class="hero-wrapper">
         <section id="hero" class="hero">
             <div class="hero-background">
-                <!-- VIDEO: Control perfecto por scroll -->
-                <video id="heroVideo" muted playsinline preload="auto" class="hero-video">
-                    <source
-                        src="https://pklskdibblefgcodcfhi.supabase.co/storage/v1/object/sign/peluqueria%20cool/video%201%20peluqieria%20cool.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84ZjlhZWE1Mi0wYTI1LTQ5ZTctYjI5YS03ZWI0ZDYwNmExZWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZWx1cXVlcmlhIGNvb2wvdmlkZW8gMSBwZWx1cWllcmlhIGNvb2wubXA0IiwiaWF0IjoxNzY4MzEyMzMzLCJleHAiOjIzOTkwMzIzMzN9.vXIdJx82U3d3YSKIdV49Fb7AdAbVrDFwhde5gu0TI5M"
-                        type="video/mp4">
-                </video>
-                <!-- Fallback: Imagen WebP (se usará si no hay video) -->
-                <img id="heroImage" crossorigin="anonymous"
-                    src="https://pklskdibblefgcodcfhi.supabase.co/storage/v1/object/sign/peluqueria%20cool/video1peluqieriacool-ezgif.com-video-to-webp-converter.webp?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84ZjlhZWE1Mi0wYTI1LTQ5ZTctYjI5YS03ZWI0ZDYwNmExZWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZWx1cXVlcmlhIGNvb2wvdmlkZW8xcGVsdXFpZXJpYWNvb2wtZXpnaWYuY29tLXZpZGVvLXRvLXdlYnAtY29udmVydGVyLndlYnAiLCJpYXQiOjE3NjgzMDQ0NjUsImV4cCI6MjM5OTAyNDQ2NX0.1ZMyop8Rs8Q-fdoabJQN8u5BFvJEno6wEHsdC3lInr4"
-                    alt="Modelo" class="hero-image">
+                <!-- CANVAS SEQUENCE: Controlado por scroll (más eficiente que video) -->
+                <canvas id="heroCanvas" class="hero-canvas"></canvas>
+                <!-- Fallback/Poster inicial mientras carga -->
+                <img id="heroImage" class="hero-image" src="assets/hero-sequence/0001.webp" alt="Peluquería Cool"
+                    style="display:none;">
                 <div class="hero-overlay"></div>
             </div>
             <div class="hero-content">
@@ -99,13 +94,9 @@
     <!-- El Salón -->
     <section id="salon" class="section section-salon">
         <div class="salon-sticky-content">
-            <!-- Video de Fondo -->
+            <!-- Canvas Start -->
             <div class="salon-background-wrapper">
-                <video id="salonVideo" class="salon-video-bg" muted playsinline>
-                    <source
-                        src="https://pklskdibblefgcodcfhi.supabase.co/storage/v1/object/sign/peluqueria%20cool/8afb765d-e116-4625-aa89-ad75435498ab.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84ZjlhZWE1Mi0wYTI1LTQ5ZTctYjI5YS03ZWI0ZDYwNmExZWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZWx1cXVlcmlhIGNvb2wvOGFmYjc2NWQtZTExNi00NjI1LWFhODktYWQ3NTQzNTQ5OGFiLm1wNCIsImlhdCI6MTc2ODM0MDQ1MSwiZXhwIjoyMzk5MDYwNDUxfQ.Taek_jBddyRgYpt0IMtJie3CYySnN73e1SI9b5mGC20"
-                        type="video/mp4">
-                </video>
+                <canvas id="salonCanvas" class="salon-canvas"></canvas>
                 <div class="salon-overlay"></div>
             </div>
 
@@ -136,13 +127,13 @@
                         </div>
                         <div class="salon-gallery">
                             <div class="gallery-item gallery-main">
-                                <div class="gallery-placeholder"><span>Interior del Salón</span></div>
+                                <img src="assets/salon-gallery/main.png" alt="Interior del Salón" loading="lazy">
                             </div>
                             <div class="gallery-item gallery-small">
-                                <div class="gallery-placeholder"><span>Detalle</span></div>
+                                <img src="assets/salon-gallery/detail.png" alt="Detalle" loading="lazy">
                             </div>
                             <div class="gallery-item gallery-small">
-                                <div class="gallery-placeholder"><span>Ambiente</span></div>
+                                <img src="assets/salon-gallery/ambient.png" alt="Ambiente" loading="lazy">
                             </div>
                         </div>
                     </div>
@@ -238,7 +229,7 @@
             <div class="staff-grid">
                 <div class="staff-card fade-in-up" style="--delay: 0.1s">
                     <div class="staff-image">
-                        <div class="staff-placeholder"><span>AM</span></div>
+                        <img src="assets/staff/andrea.png" alt="Andrea Martínez" loading="lazy">
                     </div>
                     <div class="staff-info">
                         <h4>Andrea Martínez</h4><span class="staff-role">Directora Creativa</span>
@@ -247,7 +238,7 @@
                 </div>
                 <div class="staff-card fade-in-up" style="--delay: 0.2s">
                     <div class="staff-image">
-                        <div class="staff-placeholder"><span>CR</span></div>
+                        <img src="assets/staff/carlos.png" alt="Carlos Ruiz" loading="lazy">
                     </div>
                     <div class="staff-info">
                         <h4>Carlos Ruiz</h4><span class="staff-role">Estilista Senior</span>
@@ -256,7 +247,7 @@
                 </div>
                 <div class="staff-card fade-in-up" style="--delay: 0.3s">
                     <div class="staff-image">
-                        <div class="staff-placeholder"><span>LG</span></div>
+                        <img src="assets/staff/laura.png" alt="Laura García" loading="lazy">
                     </div>
                     <div class="staff-info">
                         <h4>Laura García</h4><span class="staff-role">Colorista</span>
@@ -265,7 +256,7 @@
                 </div>
                 <div class="staff-card fade-in-up" style="--delay: 0.4s">
                     <div class="staff-image">
-                        <div class="staff-placeholder"><span>MV</span></div>
+                        <img src="assets/staff/miguel.png" alt="Miguel Vega" loading="lazy">
                     </div>
                     <div class="staff-info">
                         <h4>Miguel Vega</h4><span class="staff-role">Estilista</span>
@@ -288,7 +279,7 @@
             <div class="lookbook-gallery">
                 <div class="lookbook-item fade-in-up" style="--delay: 0.1s">
                     <div class="lookbook-image">
-                        <div class="lookbook-placeholder"><span>01</span></div>
+                        <img src="assets/lookbook/01.png" alt="Midnight Silk" loading="lazy">
                     </div>
                     <div class="lookbook-overlay">
                         <h4>Midnight Silk</h4>
@@ -297,7 +288,7 @@
                 </div>
                 <div class="lookbook-item fade-in-up" style="--delay: 0.15s">
                     <div class="lookbook-image">
-                        <div class="lookbook-placeholder"><span>02</span></div>
+                        <img src="assets/lookbook/02.png" alt="Urban Eclipse" loading="lazy">
                     </div>
                     <div class="lookbook-overlay">
                         <h4>Urban Eclipse</h4>
@@ -306,7 +297,7 @@
                 </div>
                 <div class="lookbook-item fade-in-up" style="--delay: 0.2s">
                     <div class="lookbook-image">
-                        <div class="lookbook-placeholder"><span>03</span></div>
+                        <img src="assets/lookbook/03.png" alt="Neo Classic" class="zoomed" loading="lazy">
                     </div>
                     <div class="lookbook-overlay">
                         <h4>Neo Classic</h4>
@@ -315,7 +306,7 @@
                 </div>
                 <div class="lookbook-item fade-in-up" style="--delay: 0.25s">
                     <div class="lookbook-image">
-                        <div class="lookbook-placeholder"><span>04</span></div>
+                        <img src="assets/lookbook/04.png" alt="Velvet Storm" class="zoomed-down" loading="lazy">
                     </div>
                     <div class="lookbook-overlay">
                         <h4>Velvet Storm</h4>
@@ -324,7 +315,7 @@
                 </div>
                 <div class="lookbook-item fade-in-up" style="--delay: 0.3s">
                     <div class="lookbook-image">
-                        <div class="lookbook-placeholder"><span>05</span></div>
+                        <img src="assets/lookbook/05.png" alt="Chrome Fade" loading="lazy">
                     </div>
                     <div class="lookbook-overlay">
                         <h4>Chrome Fade</h4>
@@ -333,7 +324,7 @@
                 </div>
                 <div class="lookbook-item fade-in-up" style="--delay: 0.35s">
                     <div class="lookbook-image">
-                        <div class="lookbook-placeholder"><span>06</span></div>
+                        <img src="assets/lookbook/06.png" alt="Soft Rebellion" loading="lazy">
                     </div>
                     <div class="lookbook-overlay">
                         <h4>Soft Rebellion</h4>
