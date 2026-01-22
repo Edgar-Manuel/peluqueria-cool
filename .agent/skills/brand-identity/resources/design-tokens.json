@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "brand_name": "Peluqueria Cool",
+    "description": "Core design tokens for UI implementation."
+  },
+  "colors": {
+    "primary": {
+      "DEFAULT": "#ffffff",
+      "hover": "#e0e0e0",
+      "foreground": "#0a0a0a"
+    },
+    "secondary": {
+      "DEFAULT": "#1a1a1a",
+      "foreground": "#ffffff"
+    },
+    "background": "#0a0a0a",
+    "foreground": "#ffffff",
+    "muted": "#4a4a4a",
+    "accent": "#e0e0e0",
+    "destructive": "#EF4444",
+    "success": "#10B981"
+  },
+  "typography": {
+    "font_family_headings": ["Bebas Neue", "sans-serif"],
+    "font_family_body": ["Inter", "sans-serif"],
+    "font_weight_bold": "700",
+    "font_weight_normal": "400"
+  },
+  "ui": {
+    "border_radius_default": "0.5rem",
+    "border_radius_small": "0.25rem",
+    "spacing_base_unit": "4px"
+  }
+}

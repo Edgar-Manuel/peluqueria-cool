@@ -300,9 +300,385 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Form
+    // ===== ERROR HANDLER (Pattern: Graceful Degradation) =====
+    class ErrorHandler {
+        static errors = [];
+
+        static handle(error, context = 'General') {
+            const errorObj = {
+                message: error.message || error,
+                context,
+                timestamp: new Date().toISOString(),
+                stack: error.stack || null
+            };
+
+            this.errors.push(errorObj);
+
+            // Log pero no interrumpir
+            console.error(`[${context}] Error:`, error);
+
+            // Si es un error crítico de UI, mostrar mensaje amigable
+            if (context === 'FormSubmission') {
+                this.showUserFriendlyError('Hubo un problema al enviar el formulario. Intenta de nuevo.');
+            }
+
+            return errorObj;
+        }
+
+        static showUserFriendlyError(message) {
+            // Crear toast notification
+            const toast = document.createElement('div');
+            toast.className = 'error-toast';
+            toast.setAttribute('role', 'alert');
+            toast.innerHTML = `
+                <span class="toast-icon">⚠️</span>
+                <span class="toast-message">${message}</span>
+                <button class="toast-close" aria-label="Cerrar">&times;</button>
+            `;
+
+            document.body.appendChild(toast);
+
+            // Auto-remove after 5s
+            setTimeout(() => toast.remove(), 5000);
+
+            // Manual close
+            toast.querySelector('.toast-close').addEventListener('click', () => toast.remove());
+        }
+
+        static getErrors() {
+            return [...this.errors];
+        }
+
+        static clearErrors() {
+            this.errors = [];
+        }
+    }
+
+    // ===== FORM VALIDATOR CLASS =====
+    class FormValidator {
+        constructor(formElement, config) {
+            this.form = formElement;
+            this.config = config;
+            this.errors = [];
+
+            if (!this.form) return;
+
+            this.fields = {
+                nombre: this.form.querySelector('#nombre'),
+                fecha: this.form.querySelector('#fecha'),
+                hora: this.form.querySelector('#hora'),
+                servicio: this.form.querySelector('#servicio'),
+                telefono: this.form.querySelector('#telefono')
+            };
+
+            this.init();
+        }
+
+        init() {
+            this.setupDateConstraints();
+            this.setupRealTimeValidation();
+            this.setupHoraUpdater();
+        }
+
+        setupDateConstraints() {
+            const today = new Date();
+            const minDate = new Date(today);
+            minDate.setDate(today.getDate() + this.config.minAdvanceDays);
+
+            const maxDate = new Date(today);
+            maxDate.setDate(today.getDate() + this.config.maxAdvanceDays);
+
+            this.fields.fecha.min = this.formatDate(minDate);
+            this.fields.fecha.max = this.formatDate(maxDate);
+        }
+
+        formatDate(date) {
+            return date.toISOString().split('T')[0];
+        }
+
+        setupRealTimeValidation() {
+            Object.values(this.fields).forEach(field => {
+                if (!field) return;
+
+                field.addEventListener('blur', () => this.validateField(field));
+                field.addEventListener('input', () => this.clearFieldError(field));
+            });
+        }
+
+        setupHoraUpdater() {
+            this.fields.fecha.addEventListener('change', () => {
+                this.updateAvailableSlots();
+            });
+        }
+
+        updateAvailableSlots() {
+            const dateValue = this.fields.fecha.value;
+            if (!dateValue) return;
+
+            const date = new Date(dateValue + 'T00:00:00');
+            const dayOfWeek = date.getDay();
+            const schedule = this.config.weeklySchedule[dayOfWeek];
+
+            // Limpiar opciones actuales
+            const horaSelect = this.fields.hora;
+            horaSelect.innerHTML = '<option value="">Seleccionar</option>';
+
+            if (!schedule) {
+                // Día cerrado
+                horaSelect.innerHTML = '<option value="">Cerrado este día</option>';
+                horaSelect.disabled = true;
+                this.showFieldError(this.fields.fecha, 'El salón está cerrado este día. Elige otra fecha.');
+                return;
+            }
+
+            // Verificar si es festivo
+            if (this.config.holidays.includes(dateValue)) {
+                horaSelect.innerHTML = '<option value="">Festivo - Cerrado</option>';
+                horaSelect.disabled = true;
+                this.showFieldError(this.fields.fecha, 'Este día es festivo. Elige otra fecha.');
+                return;
+            }
+
+            horaSelect.disabled = false;
+            this.clearFieldError(this.fields.fecha);
+
+            // Añadir slots disponibles
+            schedule.slots.forEach(slot => {
+                const option = document.createElement('option');
+                option.value = slot;
+                option.textContent = slot;
+                horaSelect.appendChild(option);
+            });
+        }
+
+        validateField(field) {
+            const value = field.value.trim();
+            const name = field.name;
+            let error = null;
+
+            switch (name) {
+                case 'nombre':
+                    if (!value) error = 'El nombre es obligatorio';
+                    else if (value.length < 2) error = 'El nombre debe tener al menos 2 caracteres';
+                    break;
+                case 'fecha':
+                    if (!value) error = 'Selecciona una fecha';
+                    else if (!this.isValidDate(value)) error = 'Fecha no disponible';
+                    break;
+                case 'hora':
+                    if (!value) error = 'Selecciona una hora';
+                    break;
+                case 'servicio':
+                    if (!value) error = 'Selecciona un servicio';
+                    break;
+                case 'telefono':
+                    if (!value) error = 'El teléfono es obligatorio';
+                    else if (!this.isValidPhone(value)) error = 'Formato de teléfono inválido';
+                    break;
+            }
+
+            if (error) {
+                this.showFieldError(field, error);
+                return false;
+            }
+
+            this.clearFieldError(field);
+            return true;
+        }
+
+        isValidDate(dateStr) {
+            const date = new Date(dateStr + 'T00:00:00');
+            const dayOfWeek = date.getDay();
+            const schedule = this.config.weeklySchedule[dayOfWeek];
+
+            if (!schedule) return false;
+            if (this.config.holidays.includes(dateStr)) return false;
+
+            return true;
+        }
+
+        isValidPhone(phone) {
+            // Acepta formatos: +34 600 000 000, 600000000, 600 000 000
+            const cleaned = phone.replace(/\s+/g, '').replace(/^\+/, '');
+            return /^(34)?[6789]\d{8}$/.test(cleaned);
+        }
+
+        showFieldError(field, message) {
+            this.clearFieldError(field);
+
+            field.classList.add('field-error');
+
+            const errorEl = document.createElement('span');
+            errorEl.className = 'field-error-message';
+            errorEl.textContent = message;
+            errorEl.setAttribute('role', 'alert');
+            errorEl.setAttribute('aria-live', 'polite');
+
+            field.parentNode.appendChild(errorEl);
+        }
+
+        clearFieldError(field) {
+            field.classList.remove('field-error');
+            const existingError = field.parentNode.querySelector('.field-error-message');
+            if (existingError) existingError.remove();
+        }
+
+        validateAll() {
+            let isValid = true;
+            this.errors = [];
+
+            Object.values(this.fields).forEach(field => {
+                if (field && !this.validateField(field)) {
+                    isValid = false;
+                }
+            });
+
+            return isValid;
+        }
+
+        getFormData() {
+            return {
+                nombre: this.fields.nombre.value.trim(),
+                fecha: this.fields.fecha.value,
+                hora: this.fields.hora.value,
+                servicio: this.fields.servicio.value,
+                servicioNombre: this.config.services[this.fields.servicio.value]?.name || '',
+                telefono: this.fields.telefono.value.trim()
+            };
+        }
+    }
+
+    // ===== MODAL CONTROLLER =====
+    class ModalController {
+        constructor(modalId, config) {
+            this.modal = document.getElementById(modalId);
+            this.config = config;
+
+            if (!this.modal) return;
+
+            this.backdrop = this.modal.querySelector('.modal-backdrop');
+            this.closeBtn = this.modal.querySelector('.modal-close');
+            this.closeBtnSecondary = this.modal.querySelector('#closeModalBtn');
+            this.whatsappBtn = this.modal.querySelector('#whatsappConfirmBtn');
+
+            this.elements = {
+                fecha: this.modal.querySelector('#modalFecha'),
+                hora: this.modal.querySelector('#modalHora'),
+                servicio: this.modal.querySelector('#modalServicio'),
+                telefono: this.modal.querySelector('#modalTelefono')
+            };
+
+            this.previousFocus = null;
+            this.init();
+        }
+
+        init() {
+            this.closeBtn?.addEventListener('click', () => this.close());
+            this.closeBtnSecondary?.addEventListener('click', () => this.close());
+            this.backdrop?.addEventListener('click', () => this.close());
+
+            // Cerrar con Escape
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !this.modal.hidden) {
+                    this.close();
+                }
+            });
+        }
+
+        open(data) {
+            this.previousFocus = document.activeElement;
+
+            // Formatear fecha para mostrar
+            const fechaObj = new Date(data.fecha + 'T00:00:00');
+            const fechaFormatted = fechaObj.toLocaleDateString('es-ES', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+
+            // Actualizar contenido
+            this.elements.fecha.textContent = fechaFormatted;
+            this.elements.hora.textContent = data.hora;
+            this.elements.servicio.textContent = data.servicioNombre;
+            this.elements.telefono.textContent = data.telefono;
+
+            // Generar enlace de WhatsApp
+            this.whatsappBtn.href = this.generateWhatsAppLink(data);
+
+            // Mostrar modal
+            this.modal.hidden = false;
+            document.body.style.overflow = 'hidden';
+
+            // Focus trap
+            this.closeBtn.focus();
+        }
+
+        close() {
+            this.modal.hidden = true;
+            document.body.style.overflow = '';
+
+            // Restaurar focus previo
+            if (this.previousFocus) {
+                this.previousFocus.focus();
+            }
+        }
+
+        generateWhatsAppLink(data) {
+            const fechaObj = new Date(data.fecha + 'T00:00:00');
+            const fechaText = fechaObj.toLocaleDateString('es-ES', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long'
+            });
+
+            const message = `¡Hola! 👋 Me gustaría confirmar mi cita:\n\n` +
+                `📅 *Fecha:* ${fechaText}\n` +
+                `🕐 *Hora:* ${data.hora}\n` +
+                `✨ *Servicio:* ${data.servicioNombre}\n` +
+                `👤 *Nombre:* ${data.nombre}\n` +
+                `📞 *Teléfono:* ${data.telefono}\n\n` +
+                `¡Gracias! 💇`;
+
+            const encodedMessage = encodeURIComponent(message);
+            return `https://wa.me/${this.config.whatsappNumber}?text=${encodedMessage}`;
+        }
+    }
+
+    // ===== FORM SUBMISSION =====
     const form = document.getElementById('reservaForm');
-    if (form) {
+    let formValidator, modalController;
+
+    if (form && typeof SCHEDULE_CONFIG !== 'undefined') {
+        formValidator = new FormValidator(form, SCHEDULE_CONFIG);
+        modalController = new ModalController('confirmationModal', SCHEDULE_CONFIG);
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            try {
+                if (!formValidator.validateAll()) {
+                    // Shake animation en botón
+                    const btn = form.querySelector('.form-submit');
+                    btn.classList.add('shake');
+                    setTimeout(() => btn.classList.remove('shake'), 500);
+                    return;
+                }
+
+                const data = formValidator.getFormData();
+
+                // Mostrar modal de confirmación
+                modalController.open(data);
+
+                // Reset form después de mostrar modal
+                setTimeout(() => form.reset(), 500);
+            } catch (error) {
+                ErrorHandler.handle(error, 'FormSubmission');
+            }
+        });
+    } else if (form) {
+        // Fallback si no hay config
+        console.warn('⚠️ SCHEDULE_CONFIG not loaded. Form validation limited.');
         form.addEventListener('submit', (e) => {
             e.preventDefault();
             const btn = form.querySelector('button');
