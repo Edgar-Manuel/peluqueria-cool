@@ -128,6 +128,44 @@ Para negocios con gran volumen que necesitan control total.
 - ❌ **Complejidad**: Requiere un servidor (Node.js/Python) y base de datos (MongoDB/SQL).
 - ❌ **Coste**: Mayor tiempo de desarrollo y posible coste de hosting.
 
+### 🟣 Opción 5: Panel Admin con Supabase (✨ Implementada)
+El sistema completo de gestión sin servidores propios. **Esta es la opción activa en el proyecto.**
+- ✅ **Panel Admin**: Dashboard con métricas, calendario y gestión visual de reservas/pedidos.
+- ✅ **Autenticación**: Login seguro para administradores (botón oculto en footer).
+- ✅ **Calendario**: Vista semanal con slots de tiempo y ocupación.
+- ✅ **Notificaciones**: Email (Resend) + WhatsApp (Twilio) automáticos.
+- ✅ **Pagos**: Integración con Stripe para venta de productos.
+- ✅ **Sin Servidor**: Supabase gestiona auth + base de datos (serverless).
+- ✅ **Gratis**: Tier gratuito suficiente para ~500 reservas/mes.
+
+> 📁 Ver configuración completa en `docs/API-AUDIT.md` y `.env.example`
+
+---
+
+## 🚀 Guía de Optimización SEO (2026 Ready)
+
+Este proyecto viene optimizado de fábrica para buscadores. Aquí te explicamos qué cambiar para posicionar TÚ negocio:
+
+### 1. Metaetiquetas (`index.html` - `<head>`)
+Edita estos valores para que Google sepa quién eres:
+- `<title>`: Pon el nombre de tu salón y tu ciudad (ej: "Peluquería Cool | Estilistas en Madrid").
+- `description`: Resume tus servicios en 150 caracteres. Incluye palabras clave locales.
+- `keywords`: Lista de términos por los que quieres ser encontrado.
+
+### 2. Schema.org / JSON-LD (El Secreto 🤫)
+En el `<head>` hay un bloque de código `<script type="application/ld+json">`. **¡Es vital que lo edites!**
+- Cambia la dirección, teléfono, coordenadas GPS y horarios por los reales.
+- Esto permite que Google muestre "tarjetas enriquecidas" con tus horarios y ubicación en los resultados de búsqueda.
+
+### 3. Redes Sociales (Open Graph)
+Para que tu web se vea increíble al compartirla en WhatsApp o Instagram:
+- Edita las etiquetas `og:image` y `twitter:image` apuntando a tu mejor foto.
+- Asegúrate de actualizar la URL canonical en `<link rel="canonical">`.
+
+### 4. Rendimiento y Accesibilidad
+- **Lazy Loading**: Las imágenes ya incluyen `loading="lazy"` para no ralentizar la carga.
+- **Texto Alternativo**: No olvides actualizar los atributos `alt=""` de las imágenes si subes fotos nuevas. Google "lee" las fotos a través de este texto.
+
 ---
 
 ## 🌐 Despliegue

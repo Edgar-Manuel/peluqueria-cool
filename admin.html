@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Admin | Peluquería Cool</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="admin.css">
+</head>
+
+<body>
+    <!-- Verificación de sesión -->
+    <div id="authCheck" class="auth-loading">
+        <div class="auth-loading-content">
+            <div class="spinner"></div>
+            <p>Verificando acceso...</p>
+        </div>
+    </div>
+
+    <!-- Pantalla de acceso denegado -->
+    <div id="accessDenied" class="access-denied" hidden>
+        <div class="access-denied-content">
+            <span class="access-icon">🔒</span>
+            <h1>Acceso Denegado</h1>
+            <p>No tienes permisos para acceder a esta página.</p>
+            <a href="index.html" class="btn-back">Volver al inicio</a>
+        </div>
+    </div>
+
+    <!-- Panel Principal -->
+    <div id="adminPanel" class="admin-panel" hidden>
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">COOL<span>Admin</span></div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#dashboard" class="nav-item active" data-section="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                <a href="#reservations" class="nav-item" data-section="reservations">
+                    <span class="nav-icon">📅</span>
+                    <span class="nav-text">Reservas</span>
+                    <span class="nav-badge" id="pendingBadge" hidden>0</span>
+                </a>
+                <a href="#orders" class="nav-item" data-section="orders">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-text">Pedidos</span>
+                </a>
+                <a href="#products" class="nav-item" data-section="products">
+                    <span class="nav-icon">🛍️</span>
+                    <span class="nav-text">Productos</span>
+                </a>
+                <a href="#clients" class="nav-item" data-section="clients">
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text">Clientes</span>
+                </a>
+
+                <div class="nav-divider"></div>
+
+                <a href="#settings" class="nav-item" data-section="settings">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-text">Configuración</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="admin-info">
+                    <span class="admin-avatar">👤</span>
+                    <span class="admin-name" id="adminName">Admin</span>
+                </div>
+                <button id="logoutBtn" class="btn-logout">Cerrar Sesión</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <!-- Header -->
+            <header class="admin-header">
+                <div class="header-left">
+                    <button class="sidebar-toggle" id="sidebarToggle">☰</button>
+                    <h1 id="pageTitle">Dashboard</h1>
+                </div>
+                <div class="header-right">
+                    <button class="btn-new-appointment" id="newAppointmentBtn" title="Nueva Cita">
+                        <span class="plus-icon">+</span>
+                        <span class="btn-text">Nueva Cita</span>
+                    </button>
+                    <button class="notification-btn" id="notificationBtn">
+                        <span class="notification-icon">🔔</span>
+                        <span class="notification-badge" id="notificationBadge" hidden>0</span>
+                    </button>
+                    <span class="header-date" id="headerDate"></span>
+                </div>
+            </header>
+
+            <!-- Content Container -->
+            <div class="admin-content">
+
+                <!-- ==================== DASHBOARD ==================== -->
+                <section id="dashboardSection" class="content-section active">
+                    <!-- Metrics Grid -->
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-icon">📅</div>
+                            <div class="metric-data">
+                                <span class="metric-value" id="todayCount">0</span>
+                                <span class="metric-label">Citas Hoy</span>
+                            </div>
+                        </div>
+                        <div class="metric-card accent">
+                            <div class="metric-icon">⏳</div>
+                            <div class="metric-data">
+                                <span class="metric-value" id="pendingCount">0</span>
+                                <span class="metric-label">Pendientes</span>
+                            </div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-icon">📆</div>
+                            <div class="metric-data">
+                                <span class="metric-value" id="weekCount">0</span>
+                                <span class="metric-label">Esta Semana</span>
+                            </div>
+                        </div>
+                        <div class="metric-card success">
+                            <div class="metric-icon">💰</div>
+                            <div class="metric-data">
+                                <span class="metric-value" id="monthRevenue">0€</span>
+                                <span class="metric-label">Ingresos Mes</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calendar + Today List -->
+                    <div class="dashboard-grid">
+                        <!-- Calendar -->
+                        <div class="dashboard-card calendar-container">
+                            <div class="card-header">
+                                <h3>Calendario Semanal</h3>
+                                <div class="calendar-nav">
+                                    <button id="prevWeek" class="btn-icon">&lt;</button>
+                                    <span id="calendarTitle">Semana actual</span>
+                                    <button id="nextWeek" class="btn-icon">&gt;</button>
+                                </div>
+                            </div>
+                            <div class="calendar-grid" id="calendarGrid">
+                                <!-- Se genera dinámicamente -->
+                            </div>
+                        </div>
+
+                        <!-- Today's Appointments -->
+                        <div class="dashboard-card today-container">
+                            <div class="card-header">
+                                <h3>📅 Citas de Hoy</h3>
+                                <span class="today-date" id="todayDate"></span>
+                            </div>
+                            <div class="today-list" id="todayAppointments">
+                                <!-- Se genera dinámicamente -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Notifications -->
+                    <div class="dashboard-card notifications-container">
+                        <div class="card-header">
+                            <h3>🔔 Notificaciones Recientes</h3>
+                            <button class="btn-text" id="markAllRead">Marcar todas como leídas</button>
+                        </div>
+                        <div class="notifications-list" id="notificationsList">
+                            <!-- Se genera dinámicamente -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==================== RESERVATIONS ==================== -->
+                <section id="reservationsSection" class="content-section">
+                    <div class="section-header">
+                        <div class="section-filters">
+                            <button class="filter-btn active" data-filter="all">Todas</button>
+                            <button class="filter-btn" data-filter="pending">Pendientes</button>
+                            <button class="filter-btn" data-filter="confirmed">Confirmadas</button>
+                            <button class="filter-btn" data-filter="completed">Completadas</button>
+                            <button class="filter-btn" data-filter="cancelled">Canceladas</button>
+                        </div>
+                        <div class="section-actions">
+                            <input type="date" id="filterDate" class="input-date">
+                            <button class="btn-refresh" id="refreshReservations">🔄 Actualizar</button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table" id="reservationsTable">
+                            <thead>
+                                <tr>
+                                    <th>Fecha/Hora</th>
+                                    <th>Cliente</th>
+                                    <th>Servicio</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reservationsBody">
+                                <!-- Se genera dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="empty-state" id="noReservations" hidden>
+                        <span class="empty-icon">📅</span>
+                        <p>No hay reservas para mostrar</p>
+                    </div>
+                </section>
+
+                <!-- ==================== ORDERS ==================== -->
+                <section id="ordersSection" class="content-section">
+                    <div class="section-header">
+                        <h3>Gestión de Pedidos</h3>
+                    </div>
+                    <div class="empty-state">
+                        <span class="empty-icon">📦</span>
+                        <p>Próximamente: Gestión de pedidos de productos</p>
+                    </div>
+                </section>
+
+                <!-- ==================== PRODUCTS ==================== -->
+                <section id="productsSection" class="content-section">
+                    <div class="section-header">
+                        <h3>Catálogo de Productos</h3>
+                        <button class="btn-primary" id="addProductBtn">+ Añadir Producto</button>
+                    </div>
+                    <div class="empty-state">
+                        <span class="empty-icon">🛍️</span>
+                        <p>Próximamente: Gestión de productos</p>
+                    </div>
+                </section>
+
+                <!-- ==================== CLIENTS ==================== -->
+                <section id="clientsSection" class="content-section">
+                    <div class="section-header">
+                        <h3>Base de Clientes</h3>
+                    </div>
+                    <div class="empty-state">
+                        <span class="empty-icon">👥</span>
+                        <p>Próximamente: Historial de clientes</p>
+                    </div>
+                </section>
+
+                <!-- ==================== SETTINGS ==================== -->
+                <section id="settingsSection" class="content-section">
+                    <div class="section-header">
+                        <h3>Configuración</h3>
+                    </div>
+
+                    <div class="settings-grid">
+                        <div class="settings-card">
+                            <h4>🕐 Horarios del Salón</h4>
+                            <p>Configura los días y horas de apertura</p>
+                            <button class="btn-secondary">Editar Horarios</button>
+                        </div>
+                        <div class="settings-card">
+                            <h4>📧 Notificaciones</h4>
+                            <p>Configura emails y WhatsApp</p>
+                            <button class="btn-secondary">Configurar</button>
+                        </div>
+                        <div class="settings-card">
+                            <h4>👤 Mi Cuenta</h4>
+                            <p>Cambiar contraseña y datos</p>
+                            <button class="btn-secondary">Editar Perfil</button>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de Detalles de Reserva -->
+    <div id="reservationModal" class="modal" hidden>
+        <div class="modal-backdrop"></div>
+        <div class="modal-container modal-lg">
+            <button class="modal-close">&times;</button>
+            <div class="modal-header">
+                <h2 id="modalReservationTitle">Detalles de Reserva</h2>
+            </div>
+            <div class="modal-body" id="modalReservationBody">
+                <!-- Se genera dinámicamente -->
+            </div>
+            <div class="modal-footer" id="modalReservationFooter">
+                <!-- Acciones dinámicas -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Nueva Cita -->
+    <div id="newAppointmentModal" class="modal" hidden>
+        <div class="modal-backdrop"></div>
+        <div class="modal-container modal-md">
+            <button class="modal-close" onclick="adminPanel.closeNewAppointmentModal()">&times;</button>
+            <div class="modal-header">
+                <h2>➕ Nueva Cita</h2>
+            </div>
+            <div class="modal-body">
+                <form id="newAppointmentForm" class="admin-form">
+                    <div class="form-group">
+                        <label for="newClientName">Nombre del Cliente *</label>
+                        <input type="text" id="newClientName" required placeholder="Nombre completo">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="newClientPhone">Teléfono *</label>
+                            <input type="tel" id="newClientPhone" required placeholder="+34 666 555 444">
+                        </div>
+                        <div class="form-group">
+                            <label for="newClientEmail">Email (opcional)</label>
+                            <input type="email" id="newClientEmail" placeholder="cliente@email.com">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="newAppointmentDate">Fecha *</label>
+                            <input type="date" id="newAppointmentDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="newAppointmentTime">Hora *</label>
+                            <select id="newAppointmentTime" required>
+                                <option value="">Seleccionar hora</option>
+                                <option value="09:00">09:00</option>
+                                <option value="09:30">09:30</option>
+                                <option value="10:00">10:00</option>
+                                <option value="10:30">10:30</option>
+                                <option value="11:00">11:00</option>
+                                <option value="11:30">11:30</option>
+                                <option value="12:00">12:00</option>
+                                <option value="12:30">12:30</option>
+                                <option value="13:00">13:00</option>
+                                <option value="13:30">13:30</option>
+                                <option value="16:00">16:00</option>
+                                <option value="16:30">16:30</option>
+                                <option value="17:00">17:00</option>
+                                <option value="17:30">17:30</option>
+                                <option value="18:00">18:00</option>
+                                <option value="18:30">18:30</option>
+                                <option value="19:00">19:00</option>
+                                <option value="19:30">19:30</option>
+                                <option value="20:00">20:00</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="newAppointmentService">Servicio *</label>
+                        <select id="newAppointmentService" required>
+                            <option value="">Seleccionar servicio</option>
+                            <option value="Corte & Styling">Corte & Styling (45€)</option>
+                            <option value="Coloración Completa">Coloración Completa (80€)</option>
+                            <option value="Balayage Premium">Balayage Premium (120€)</option>
+                            <option value="Mechas">Mechas (90€)</option>
+                            <option value="Tratamiento Keratina">Tratamiento Keratina (150€)</option>
+                            <option value="Peinado Evento">Peinado Evento (60€)</option>
+                            <option value="Barbería">Barbería (25€)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="newAppointmentNotes">Notas (opcional)</label>
+                        <textarea id="newAppointmentNotes" rows="2" placeholder="Notas adicionales..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="newAppointmentStatus">Estado</label>
+                        <select id="newAppointmentStatus">
+                            <option value="pending">Pendiente</option>
+                            <option value="confirmed">Confirmada</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary"
+                    onclick="adminPanel.closeNewAppointmentModal()">Cancelar</button>
+                <button type="button" class="btn-primary" onclick="adminPanel.createNewAppointment()">
+                    <span class="btn-icon">✓</span> Crear Cita
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration -->
+    <script src="js/config.prod.js"></script>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Inicializar Supabase desde configuración
+        (function () {
+            const config = window.APP_CONFIG || {};
+            const SUPABASE_URL = config.SUPABASE_URL;
+            const SUPABASE_ANON_KEY = config.SUPABASE_ANON_KEY;
+
+            if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+                console.error('❌ Missing Supabase config. Copy js/config.example.js to js/config.js');
+                return;
+            }
+
+            if (window.supabase && window.supabase.createClient) {
+                window.supabaseInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('✅ Supabase initialized for admin');
+            } else {
+                console.error('❌ Supabase SDK not loaded');
+            }
+        })();
+    </script>
+    <script src="js/auth.js"></script>
+    <script src="js/reservations.js"></script>
+    <script src="admin.js"></script>
+</body>
+
+</html>

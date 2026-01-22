@@ -25,3 +25,12 @@ build/
 # Local env files
 .env
 .env.local
+.env.*.local
+
+# Security - Scripts with sensitive data
+execute-sql.ps1
+*.sql.local
+
+# Security - Config files with keys
+js/config.local.js
+js/config.js
