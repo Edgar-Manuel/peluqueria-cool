@@ -31,9 +31,12 @@ CREATE TABLE IF NOT EXISTS products (
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 
 -- 5. Política para ver productos activos (Público)
-CREATE POLICY IF NOT EXISTS "Anyone can view active products" ON products
+DROP POLICY IF EXISTS "Anyone can view active products" ON products;
+CREATE POLICY "Anyone can view active products" ON products
     FOR SELECT USING (active = true);
 
 -- 6. Política para gestionar productos (Solo Admin Autenticado)
-CREATE POLICY IF NOT EXISTS "Authenticated users can manage products" ON products
+DROP POLICY IF EXISTS "Authenticated users can manage products" ON products;
+CREATE POLICY "Authenticated users can manage products" ON products
     FOR ALL USING (auth.role() = 'authenticated');
+
