@@ -880,59 +880,10 @@
                 }
             });
 
-            // Modificar envío de reservas para guardar en Supabase
-            const reservaForm = document.getElementById('reservaForm');
-            if (reservaForm && window.reservations && typeof SCHEDULE_CONFIG !== 'undefined') {
-                // Sobrescribir el handler existente
-                const originalSubmit = reservaForm.onsubmit;
-
-                reservaForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    if (!formValidator || !formValidator.validateAll()) {
-                        const btn = reservaForm.querySelector('.form-submit');
-                        btn.classList.add('shake');
-                        setTimeout(() => btn.classList.remove('shake'), 500);
-                        return;
-                    }
-
-                    const formData = formValidator.getFormData();
-                    const btn = reservaForm.querySelector('.form-submit');
-                    const originalText = btn.textContent;
-
-                    try {
-                        btn.textContent = 'Enviando...';
-                        btn.disabled = true;
-
-                        // Guardar en Supabase
-                        await reservations.create(formData);
-
-                        // Mostrar modal de confirmación
-                        if (modalController) {
-                            modalController.open(formData);
-                        }
-
-                        // Reset form
-                        setTimeout(() => {
-                            reservaForm.reset();
-                            btn.textContent = originalText;
-                            btn.disabled = false;
-                        }, 500);
-
-                    } catch (error) {
-                        console.error('Error saving reservation:', error);
-                        // Fallback: mostrar modal aunque falle Supabase
-                        if (modalController) {
-                            modalController.open(formData);
-                        }
-                        btn.textContent = originalText;
-                        btn.disabled = false;
-                    }
-                }, true); // Captura antes que otros handlers
-            }
+            });
         });
     </script>
+
 </body>
 
 </html>

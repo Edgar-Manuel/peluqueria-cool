@@ -728,6 +728,25 @@ body {
     color: var(--admin-danger);
 }
 
+/* Source Cell Styles */
+.source-cell {
+    font-size: 18px;
+    text-align: center !important;
+    width: 60px;
+    cursor: help;
+}
+
+.source-cell:hover::after {
+    content: attr(title);
+    position: absolute;
+    background: var(--admin-surface);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    border: 1px solid var(--admin-border);
+}
+
+
 /* Action Buttons */
 .action-btns {
     display: flex;
