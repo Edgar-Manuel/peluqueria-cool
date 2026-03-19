@@ -15,11 +15,34 @@ class ReservationsManager {
         return window.supabaseInstance || null;
     }
 
-    // Crear nueva reserva (desde formulario público)
+    // Verificar disponibilidad (evitar dobles reservas)
+    async checkAvailability(date, time) {
+        const client = this.getClient();
+        if (!client) throw new Error('Database not connected');
+
+        const { data, error } = await client
+            .from('reservations')
+            .select('id')
+            .eq('date', date)
+            .eq('time', time)
+            .neq('status', 'cancelled'); // Ignorar las canceladas
+
+        if (error) throw error;
+        return data.length === 0; // true si está libre
+    }
+
+    // Crear nueva reserva (desde cualquier fuente)
     async create(reservationData) {
         const client = this.getClient();
         if (!client) throw new Error('Database not connected');
 
+        // 1. Comprobar disponibilidad real
+        const isAvailable = await this.checkAvailability(reservationData.fecha, reservationData.hora);
+        if (!isAvailable) {
+            throw new Error('Lo sentimos, este horario ya ha sido reservado justo ahora. Por favor, elige otro.');
+        }
+
+        // 2. Insertar en Supabase
         const { data, error } = await client
             .from('reservations')
             .insert({
@@ -31,7 +54,9 @@ class ReservationsManager {
                 date: reservationData.fecha,
                 time: reservationData.hora,
                 status: 'pending',
-                notes: '',
+                fuente: reservationData.fuente || 'web',
+                notes: reservationData.notas || '',
+                recordatorio_enviado: false,
                 created_at: new Date().toISOString()
             })
             .select()
@@ -39,11 +64,35 @@ class ReservationsManager {
 
         if (error) throw error;
 
-        // Crear notificación
-        await this.createNotification(data.id, 'Nueva reserva de ' + reservationData.nombre);
+        // 3. Notificar vía Webhook (Chatfuel/Make) - Silencioso para no bloquear al usuario
+        this.notifyWebhook(data).catch(err => console.error('Webhook Error:', err));
+
+        // 4. Crear notificación interna para el admin
+        await this.createNotification(data.id, `Nueva reserva (${data.fuente}) de ${reservationData.nombre}`);
 
         return data;
     }
+
+    // Notificar al sistema externo (Chatfuel/Make)
+    async notifyWebhook(reservation) {
+        // En producción, estas URLs irían en variables de entorno o config segura
+        const WEBHOOK_URL = window.APP_CONFIG?.WEBHOOK_URL || null;
+        if (!WEBHOOK_URL) return;
+
+        try {
+            await fetch(WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'new_booking',
+                    data: reservation
+                })
+            });
+        } catch (error) {
+            console.error('Error enviando notificación al webhook:', error);
+        }
+    }
+
 
     // Obtener todas las reservas
     async getAll(filters = {}) {

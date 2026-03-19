@@ -74,8 +74,17 @@ document.addEventListener('DOMContentLoaded', () => {
         resize() {
             if (!this.canvas) return;
             const parent = this.canvas.parentElement;
-            this.canvas.width = parent.clientWidth;
-            this.canvas.height = parent.clientHeight;
+
+            // En móvil, usar viewport completo para evitar bordes negros
+            const isMobile = window.innerWidth <= 768;
+            if (isMobile) {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            } else {
+                this.canvas.width = parent.clientWidth;
+                this.canvas.height = parent.clientHeight;
+            }
+
             this.render(this.lastProgress || 0); // Re-renderizar
         }
 
@@ -649,49 +658,55 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('reservaForm');
     let formValidator, modalController;
 
-    if (form && typeof SCHEDULE_CONFIG !== 'undefined') {
+    if (form && typeof SCHEDULE_CONFIG !== 'undefined' && window.reservations) {
         formValidator = new FormValidator(form, SCHEDULE_CONFIG);
         modalController = new ModalController('confirmationModal', SCHEDULE_CONFIG);
 
-        form.addEventListener('submit', (e) => {
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const btn = form.querySelector('.form-submit');
+            const originalText = btn.textContent;
 
             try {
                 if (!formValidator.validateAll()) {
-                    // Shake animation en botón
-                    const btn = form.querySelector('.form-submit');
                     btn.classList.add('shake');
                     setTimeout(() => btn.classList.remove('shake'), 500);
                     return;
                 }
 
-                const data = formValidator.getFormData();
+                btn.textContent = 'Enviando...';
+                btn.disabled = true;
+
+                const formData = formValidator.getFormData();
+                
+                // Guardar en Supabase (esto ahora incluye check de disponibilidad real)
+                await window.reservations.create(formData);
 
                 // Mostrar modal de confirmación
-                modalController.open(data);
+                modalController.open(formData);
 
-                // Reset form después de mostrar modal
-                setTimeout(() => form.reset(), 500);
+                // Reset form
+                setTimeout(() => {
+                    form.reset();
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }, 500);
+
             } catch (error) {
                 ErrorHandler.handle(error, 'FormSubmission');
+                btn.textContent = originalText;
+                btn.disabled = false;
             }
         });
     } else if (form) {
-        // Fallback si no hay config
-        console.warn('⚠️ SCHEDULE_CONFIG not loaded. Form validation limited.');
+        // Fallback si no hay Supabase o Config
+        console.warn('⚠️ Base de datos o configuración no cargada.');
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            const btn = form.querySelector('button');
-            const original = btn.innerHTML;
-            btn.innerHTML = '¡Enviado!';
-            btn.style.background = '#4CAF50';
-            setTimeout(() => {
-                btn.innerHTML = original;
-                btn.style.background = '';
-                form.reset();
-            }, 3000);
+            alert('Enviado (Simulado). Peluquería Cool en modo offline.');
         });
     }
+
 
     // Cursor
     const cursorDot = document.querySelector('.cursor-dot');

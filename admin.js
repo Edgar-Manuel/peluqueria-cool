@@ -409,6 +409,7 @@ class AdminPanel {
                     <a href="tel:${r.customer_phone}" style="color: var(--admin-text-muted)">${r.customer_phone}</a>
                 </td>
                 <td>${r.service_name || r.service}</td>
+                <td class="source-cell">${this.getSourceIcon(r.fuente)}</td>
                 <td><span class="status-badge ${r.status}">${this.getStatusText(r.status)}</span></td>
                 <td>
                     <div class="action-btns">
@@ -484,6 +485,10 @@ class AdminPanel {
                 <div class="detail-row">
                     <span class="detail-label">Estado</span>
                     <span class="status-badge ${reservation.status}">${this.getStatusText(reservation.status)}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Origen</span>
+                    <span class="detail-value">${this.getSourceIcon(reservation.fuente)} ${reservation.fuente.toUpperCase()}</span>
                 </div>
                 ${reservation.notes ? `
                     <div class="detail-row">
@@ -604,8 +609,10 @@ class AdminPanel {
             fecha: document.getElementById('newAppointmentDate').value,
             hora: document.getElementById('newAppointmentTime').value,
             servicio: document.getElementById('newAppointmentService').value,
+            servicioNombre: document.getElementById('newAppointmentService').value, // En manual el nombre es el value
             notas: document.getElementById('newAppointmentNotes').value.trim() || null,
-            status: document.getElementById('newAppointmentStatus').value
+            status: document.getElementById('newAppointmentStatus').value,
+            fuente: 'manual' // Forzar fuente manual desde el panel
         };
 
         // Validate data
@@ -659,6 +666,17 @@ class AdminPanel {
         };
         return texts[status] || status;
     }
+
+    getSourceIcon(source) {
+        const icons = {
+            web: '🌐',
+            whatsapp: '📱',
+            manual: '📝',
+            telefono: '📞'
+        };
+        return icons[source] || '❓';
+    }
+
 
     formatDate(dateStr) {
         const date = new Date(dateStr + 'T00:00:00');
