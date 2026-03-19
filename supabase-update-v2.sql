@@ -7,7 +7,9 @@ ALTER TABLE reservations
 ADD COLUMN IF NOT EXISTS fuente TEXT DEFAULT 'web' CHECK (fuente IN ('web', 'whatsapp', 'telefono', 'manual')),
 ADD COLUMN IF NOT EXISTS whatsapp_message_id TEXT,
 ADD COLUMN IF NOT EXISTS recordatorio_enviado BOOLEAN DEFAULT false,
-ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now(),
+ADD COLUMN IF NOT EXISTS duration_minutes INTEGER DEFAULT 30, -- Duración real de esta cita
+ADD COLUMN IF NOT EXISTS no_show BOOLEAN DEFAULT false; -- Si el cliente no se presentó
 
 -- 2. Asegurar que service_name sea obligatorio para consistencia visual
 -- ALTER TABLE reservations ALTER COLUMN service_name SET NOT NULL; 
@@ -24,6 +26,7 @@ CREATE TABLE IF NOT EXISTS products (
     active BOOLEAN DEFAULT true,
     stripe_price_id TEXT,
     category TEXT,
+    duration_minutes INTEGER DEFAULT 30, -- Tiempo estimado por servicio
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
