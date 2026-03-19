@@ -75,12 +75,30 @@ class ReservationsManager {
 
     // Notificar al sistema externo (Chatfuel/Make)
     async notifyWebhook(reservation) {
-        // En producción, estas URLs irían en variables de entorno o config segura
-        const WEBHOOK_URL = window.APP_CONFIG?.WEBHOOK_URL || null;
-        if (!WEBHOOK_URL) return;
+        let webhookUrl = window.APP_CONFIG?.WEBHOOK_URL || null;
+
+        // Intentar obtener URL actualizada desde la base de datos
+        try {
+            const client = this.getClient();
+            if (client) {
+                const { data } = await client
+                    .from('salon_config')
+                    .select('value')
+                    .eq('key', 'webhook_url')
+                    .single();
+                
+                if (data && data.value) {
+                    webhookUrl = data.value;
+                }
+            }
+        } catch (error) {
+            console.error('Error obteniendo webhook db config:', error);
+        }
+
+        if (!webhookUrl || webhookUrl === '""') return;
 
         try {
-            await fetch(WEBHOOK_URL, {
+            await fetch(webhookUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -92,6 +110,7 @@ class ReservationsManager {
             console.error('Error enviando notificación al webhook:', error);
         }
     }
+
 
 
     // Obtener todas las reservas

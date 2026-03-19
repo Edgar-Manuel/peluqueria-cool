@@ -654,7 +654,91 @@ class AdminPanel {
         }
     }
 
+    // ==================== CONFIGURATION ====================
+    async openNotificationsModal() {
+        const modal = document.getElementById('notificationsModal');
+        const input = document.getElementById('webhookUrlInput');
+        
+        try {
+            const client = window.supabaseInstance;
+            const { data } = await client
+                .from('salon_config')
+                .select('value')
+                .eq('key', 'webhook_url')
+                .single();
+            
+            if (data && data.value) {
+                input.value = typeof data.value === 'string' ? data.value : '';
+            }
+        } catch (error) {
+            console.error('Error cargando webhook:', error);
+        }
+        
+        modal.hidden = false;
+    }
+
+    async saveNotifications() {
+        const url = document.getElementById('webhookUrlInput').value.trim();
+        const btn = document.querySelector('#notificationsModal .btn-primary');
+
+        try {
+            btn.textContent = 'Guardando...';
+            btn.disabled = true;
+
+            const client = window.supabaseInstance;
+            const { error } = await client
+                .from('salon_config')
+                .upsert({ key: 'webhook_url', value: url });
+
+            if (error) throw error;
+
+            this.showToast('✅ Configuración guardada', 'success');
+            
+            // Actualizar URL en memoria si existe el objeto APP_CONFIG
+            if (window.APP_CONFIG) {
+                window.APP_CONFIG.WEBHOOK_URL = url;
+            }
+
+            this.closeModal('notificationsModal');
+        } catch (error) {
+            console.error('Error guardando webhook:', error);
+            this.showToast('Error al guardar: ' + error.message, 'error');
+        } finally {
+            btn.textContent = 'Guardar';
+            btn.disabled = false;
+        }
+    }
+
+    openScheduleModal() {
+        // En esta fase, sugerimos editar el archivo local o avisamos que está en desarrollo
+        this.showToast('ℹ️ Gestión de horarios vía Panel en desarrollo. Por ahora, edita schedule-config.js', 'info');
+    }
+
+    openProfileModal() {
+        const newPass = prompt(`Cambiar contraseña para ${auth.user?.email || 'admin'}:\nIntroduce la nueva contraseña (mínimo 6 caracteres):`);
+        
+        if (newPass) {
+            if (newPass.length < 6) {
+                this.showToast('La contraseña debe tener al menos 6 caracteres', 'error');
+                return;
+            }
+            this.updatePassword(newPass);
+        }
+    }
+
+    async updatePassword(password) {
+        try {
+            const client = window.supabaseInstance;
+            const { error } = await client.auth.updateUser({ password });
+            if (error) throw error;
+            this.showToast('✅ Contraseña actualizada correctamente', 'success');
+        } catch (error) {
+            this.showToast('Error al actualizar: ' + error.message, 'error');
+        }
+    }
+
     // ==================== HELPERS ====================
+
 
     getStatusText(status) {
         const texts = {
