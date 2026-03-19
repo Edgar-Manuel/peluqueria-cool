@@ -267,17 +267,17 @@
                         <div class="settings-card">
                             <h4>🕐 Horarios del Salón</h4>
                             <p>Configura los días y horas de apertura</p>
-                            <button class="btn-secondary">Editar Horarios</button>
+                            <button class="btn-secondary" onclick="adminPanel.openScheduleModal()">Editar Horarios</button>
                         </div>
                         <div class="settings-card">
                             <h4>📧 Notificaciones</h4>
                             <p>Configura emails y WhatsApp</p>
-                            <button class="btn-secondary">Configurar</button>
+                            <button class="btn-secondary" onclick="adminPanel.openNotificationsModal()">Configurar</button>
                         </div>
                         <div class="settings-card">
                             <h4>👤 Mi Cuenta</h4>
                             <p>Cambiar contraseña y datos</p>
-                            <button class="btn-secondary">Editar Perfil</button>
+                            <button class="btn-secondary" onclick="adminPanel.openProfileModal()">Editar Perfil</button>
                         </div>
                     </div>
                 </section>
@@ -427,6 +427,29 @@
     <script src="js/auth.js"></script>
     <script src="js/reservations.js"></script>
     <script src="admin.js"></script>
-</body>
+    <!-- Modal de Configuración (Notificaciones) -->
+    <div id="notificationsModal" class="modal" hidden>
+        <div class="modal-backdrop"></div>
+        <div class="modal-container modal-sm">
+            <button class="modal-close" onclick="adminPanel.closeModal('notificationsModal')">&times;</button>
+            <div class="modal-header">
+                <h2>📧 Notificaciones</h2>
+            </div>
+            <div class="modal-body">
+                <form id="notificationsForm" class="admin-form">
+                    <div class="form-group">
+                        <label for="webhookUrlInput">Webhook de WhatsApp (Make.com/Chatfuel)</label>
+                        <input type="url" id="webhookUrlInput" placeholder="https://hook.make.com/...">
+                        <small style="color:var(--admin-text-muted)">Se notificará a esta URL al recibir citas de la web.</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="adminPanel.closeModal('notificationsModal')">Cerrar</button>
+                <button type="button" class="btn-primary" onclick="adminPanel.saveNotifications()">Guardar</button>
+            </div>
+        </div>
+    </div>
 
-</html>
+</body>
+</html>
