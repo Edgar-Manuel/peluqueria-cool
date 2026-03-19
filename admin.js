@@ -408,11 +408,17 @@ class AdminPanel {
                     <strong>${r.customer_name}</strong><br>
                     <a href="tel:${r.customer_phone}" style="color: var(--admin-text-muted)">${r.customer_phone}</a>
                 </td>
-                <td>${r.service_name || r.service}</td>
+                <td>
+                    ${r.service_name || r.service}<br>
+                    <small style="color:var(--admin-text-muted)">⏱ ${r.duration_minutes || 30} min</small>
+                </td>
                 <td class="source-cell">${this.getSourceIcon(r.fuente)}</td>
                 <td><span class="status-badge ${r.status}">${this.getStatusText(r.status)}</span></td>
                 <td>
                     <div class="action-btns">
+                        ${r.status === 'confirmed' ? `
+                            <button class="btn-action reject" title="Cliente No-Show (Liberar hueco)" onclick="adminPanel.markNoShow('${r.id}')">🚫</button>
+                        ` : ''}
                         ${r.status === 'pending' ? `
                             <button class="btn-action confirm" onclick="adminPanel.confirmReservation('${r.id}')">✓</button>
                             <button class="btn-action reject" onclick="adminPanel.rejectReservation('${r.id}')">✗</button>
@@ -448,6 +454,26 @@ class AdminPanel {
             this.showToast('Error al rechazar', 'error');
         }
     }
+
+    async markNoShow(id) {
+        if (!confirm('¿Marcar como No-Presentado? Se liberará el hueco.')) return;
+        try {
+            const client = window.supabaseInstance;
+            const { error } = await client
+                .from('reservations')
+                .update({ status: 'cancelled', no_show: true })
+                .eq('id', id);
+
+            if (error) throw error;
+            
+            await this.loadReservations();
+            this.showToast('Hueco liberado (No-Show)', 'warning');
+        } catch (error) {
+            console.error('Error marking no-show:', error);
+            this.showToast('Error al liberar hueco', 'error');
+        }
+    }
+
 
     viewReservation(id) {
         const reservation = this.reservationsData.find(r => r.id === id);
@@ -609,10 +635,11 @@ class AdminPanel {
             fecha: document.getElementById('newAppointmentDate').value,
             hora: document.getElementById('newAppointmentTime').value,
             servicio: document.getElementById('newAppointmentService').value,
-            servicioNombre: document.getElementById('newAppointmentService').value, // En manual el nombre es el value
+            servicioNombre: document.getElementById('newAppointmentService').value,
+            duracion: document.getElementById('newAppointmentDuration').value,
             notas: document.getElementById('newAppointmentNotes').value.trim() || null,
             status: document.getElementById('newAppointmentStatus').value,
-            fuente: 'manual' // Forzar fuente manual desde el panel
+            fuente: 'manual'
         };
 
         // Validate data

@@ -361,19 +361,30 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="newAppointmentService">Servicio *</label>
-                        <select id="newAppointmentService" required>
-                            <option value="">Seleccionar servicio</option>
-                            <option value="Corte & Styling">Corte & Styling (45€)</option>
-                            <option value="Coloración Completa">Coloración Completa (80€)</option>
-                            <option value="Balayage Premium">Balayage Premium (120€)</option>
-                            <option value="Mechas">Mechas (90€)</option>
-                            <option value="Tratamiento Keratina">Tratamiento Keratina (150€)</option>
-                            <option value="Peinado Evento">Peinado Evento (60€)</option>
-                            <option value="Barbería">Barbería (25€)</option>
-                        </select>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="newAppointmentService">Servicio *</label>
+                            <select id="newAppointmentService" required>
+                                <option value="">Seleccionar servicio</option>
+                                <option value="Corte & Styling">Corte & Styling</option>
+                                <option value="Coloración">Coloración</option>
+                                <option value="Balayage">Balayage</option>
+                                <option value="Barbería">Barbería</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="newAppointmentDuration">Duración Estimada</label>
+                            <select id="newAppointmentDuration">
+                                <option value="30">30 min (Express)</option>
+                                <option value="45">45 min (Estándar)</option>
+                                <option value="60">1 hora (Completo)</option>
+                                <option value="120">2 horas (Color/Tratamiento)</option>
+                                <option value="180">3 horas (Transformación)</option>
+                            </select>
+                        </div>
                     </div>
+
 
                     <div class="form-group">
                         <label for="newAppointmentNotes">Notas (opcional)</label>

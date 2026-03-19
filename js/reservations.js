@@ -57,6 +57,7 @@ class ReservationsManager {
                 fuente: reservationData.fuente || 'web',
                 notes: reservationData.notas || '',
                 recordatorio_enviado: false,
+                duration_minutes: parseInt(reservationData.duracion || 30),
                 created_at: new Date().toISOString()
             })
             .select()
