@@ -149,16 +149,31 @@
                     <div class="dashboard-grid">
                         <!-- Calendar -->
                         <div class="dashboard-card calendar-container">
-                            <div class="card-header">
-                                <h3>Calendario Semanal</h3>
-                                <div class="calendar-nav">
-                                    <button id="prevWeek" class="btn-icon">&lt;</button>
-                                    <span id="calendarTitle">Semana actual</span>
-                                    <button id="nextWeek" class="btn-icon">&gt;</button>
+                            <div class="card-header calendar-card-header">
+                                <h3>Calendario</h3>
+                                <div class="calendar-controls">
+                                    <div class="calendar-view-switcher">
+                                        <button class="cal-view-btn active" data-view="week">Semana</button>
+                                        <button class="cal-view-btn" data-view="day">Día</button>
+                                        <button class="cal-view-btn" data-view="month">Mes</button>
+                                    </div>
+                                    <div class="calendar-nav">
+                                        <button id="prevWeek" class="btn-icon">&lt;</button>
+                                        <span id="calendarTitle">Semana actual</span>
+                                        <button id="nextWeek" class="btn-icon">&gt;</button>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="calendar-grid" id="calendarGrid">
+                            <div class="calendar-body" id="calendarGrid">
                                 <!-- Se genera dinámicamente -->
+                            </div>
+                            <div class="calendar-legend">
+                                <div class="legend-item"><span class="legend-dot" style="background:#10b981"></span>Cortes</div>
+                                <div class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span>Color/Tinte</div>
+                                <div class="legend-item"><span class="legend-dot" style="background:#8b5cf6"></span>Peinado</div>
+                                <div class="legend-item"><span class="legend-dot" style="background:#06b6d4"></span>Tratamiento</div>
+                                <div class="legend-item"><span class="legend-dot" style="background:#f97316"></span>Otros</div>
+                                <div class="legend-item"><span class="legend-dot legend-dot-free"></span>Libre</div>
                             </div>
                         </div>
 
