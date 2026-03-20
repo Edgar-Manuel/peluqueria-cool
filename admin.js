@@ -196,6 +196,8 @@ class AdminPanel {
             this.loadReservations();
         } else if (section === 'agenda') {
             this.initAgenda();
+        } else if (section === 'clients') {
+            this.loadClients();
         }
     }
 
@@ -1380,6 +1382,371 @@ class AdminPanel {
                 hint.textContent = h > 0 ? `${h}h ${m > 0 ? m + 'min' : ''}` : `${m} minutos`;
             }
         }
+    }
+
+    // ==================== RESERVATION DETAILS (agenda) ====================
+
+    async openReservationDetails(id) {
+        const client = window.supabaseInstance;
+        if (!client) return;
+        const { data: res } = await client
+            .from('reservations')
+            .select('*')
+            .eq('id', id)
+            .single();
+        if (res) this.showReservationModal(res);
+    }
+
+    // ==================== CLIENTS ====================
+
+    async loadClients(search = '') {
+        const client = window.supabaseInstance;
+        if (!client) return;
+
+        // Setup search listener once
+        if (!this._clientSearchSetup) {
+            this._clientSearchSetup = true;
+            document.getElementById('clientSearch').addEventListener('input', (e) => {
+                clearTimeout(this._clientSearchTimer);
+                this._clientSearchTimer = setTimeout(() => this.loadClients(e.target.value.trim()), 300);
+            });
+        }
+
+        document.getElementById('clientsLoading').hidden = false;
+        document.getElementById('clientsTable').hidden = true;
+        document.getElementById('clientsEmpty').hidden = true;
+
+        try {
+            // 1. Fetch from clientes table (completed visits tracked by trigger)
+            let dbQuery = client
+                .from('clientes')
+                .select('*')
+                .order('ultima_visita', { ascending: false, nullsFirst: false })
+                .limit(200);
+
+            if (search) {
+                dbQuery = dbQuery.or(`nombre.ilike.%${search}%,telefono.ilike.%${search}%`);
+            }
+
+            const { data: dbClients } = await dbQuery;
+
+            // 2. Fetch unique clients from reservations (might not be in clientes yet)
+            const { data: resData } = await client
+                .from('reservations')
+                .select('customer_name, customer_phone, date, service_name, status, created_at')
+                .not('status', 'in', '("cancelled","rejected")')
+                .order('date', { ascending: false })
+                .limit(300);
+
+            // Merge: add reservation-only clients not in clientes table
+            const knownPhones = new Set((dbClients || []).map(c => c.telefono));
+            const extraClients = {};
+            (resData || []).forEach(r => {
+                if (!knownPhones.has(r.customer_phone) && !extraClients[r.customer_phone]) {
+                    if (search) {
+                        const q = search.toLowerCase();
+                        if (!r.customer_name?.toLowerCase().includes(q) && !r.customer_phone?.includes(q)) return;
+                    }
+                    extraClients[r.customer_phone] = {
+                        id: null,
+                        nombre: r.customer_name,
+                        telefono: r.customer_phone,
+                        total_visitas: 0,
+                        ultima_visita: r.status === 'completed' ? r.date : null,
+                        ultimo_servicio_nombre: r.service_name,
+                        cancelaciones_tardias: 0,
+                        notas: null,
+                        created_at: r.created_at,
+                        _pending: true
+                    };
+                }
+            });
+
+            const allClients = [...(dbClients || []), ...Object.values(extraClients)];
+            this._clientsData = allClients;
+
+            this.renderClientsStats(dbClients || [], allClients);
+            this.renderClientsTable(allClients);
+
+        } catch (err) {
+            console.error('Error loading clients:', err);
+            document.getElementById('clientsLoading').hidden = true;
+            document.getElementById('clientsEmpty').hidden = false;
+        }
+    }
+
+    renderClientsStats(dbClients, allClients) {
+        // Total
+        document.getElementById('kpiTotalClients').textContent = allClients.length;
+
+        // New this month
+        const now = new Date();
+        const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+        const newThisMonth = allClients.filter(c => c.created_at >= monthStart).length;
+        document.getElementById('kpiNewMonth').textContent = newThisMonth;
+
+        // Most loyal client (most visits)
+        const topClient = [...dbClients].sort((a, b) => (b.total_visitas || 0) - (a.total_visitas || 0))[0];
+        const topEl = document.getElementById('kpiTopClient');
+        if (topClient) {
+            topEl.textContent = topClient.nombre.split(' ')[0];
+            topEl.title = `${topClient.nombre} · ${topClient.total_visitas} visitas`;
+        } else {
+            topEl.textContent = '—';
+        }
+
+        // Top service
+        const serviceCounts = {};
+        allClients.forEach(c => {
+            if (c.ultimo_servicio_nombre) {
+                serviceCounts[c.ultimo_servicio_nombre] = (serviceCounts[c.ultimo_servicio_nombre] || 0) + 1;
+            }
+        });
+        const topService = Object.entries(serviceCounts).sort((a, b) => b[1] - a[1])[0];
+        document.getElementById('kpiTopService').textContent = topService
+            ? topService[0].split(' ').slice(0, 2).join(' ')
+            : '—';
+    }
+
+    renderClientsTable(clients) {
+        document.getElementById('clientsLoading').hidden = true;
+
+        if (clients.length === 0) {
+            document.getElementById('clientsTable').hidden = true;
+            document.getElementById('clientsEmpty').hidden = false;
+            return;
+        }
+
+        document.getElementById('clientsEmpty').hidden = true;
+        document.getElementById('clientsTable').hidden = false;
+
+        const tbody = document.getElementById('clientsTableBody');
+        tbody.innerHTML = clients.map(c => {
+            const visitas = c.total_visitas || 0;
+            const frecuencia = this._clientFrequencyBadge(c.ultima_visita);
+            const initials = (c.nombre || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+            const cancelBadge = c.cancelaciones_tardias > 0
+                ? `<span class="client-cancel-badge" title="${c.cancelaciones_tardias} cancelación(es) tardía(s)">⚠️ ${c.cancelaciones_tardias}</span>`
+                : '';
+            const servColor = this._getServiceColor(c.ultimo_servicio_id || '');
+            const ultimaVisitaStr = c.ultima_visita
+                ? this._formatClientDate(c.ultima_visita)
+                : c._pending ? '<span class="text-muted">Sin completar</span>' : '<span class="text-muted">—</span>';
+
+            return `<tr class="client-row" data-phone="${c.telefono}">
+                <td>
+                    <div class="client-row-name">
+                        <div class="client-avatar">${initials}</div>
+                        <div>
+                            <div class="client-name-text">${c.nombre} ${cancelBadge}</div>
+                            <div class="client-phone-text">${c.telefono}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>${ultimaVisitaStr}</td>
+                <td>
+                    <div class="client-visits">
+                        <span class="client-visits-num">${visitas}</span>
+                        ${this._visitStars(visitas)}
+                    </div>
+                </td>
+                <td>
+                    ${c.ultimo_servicio_nombre
+                        ? `<span class="client-service-tag" style="border-left:3px solid ${servColor}">${c.ultimo_servicio_nombre}</span>`
+                        : '<span class="text-muted">—</span>'}
+                </td>
+                <td>${frecuencia}</td>
+                <td>
+                    <div class="client-actions">
+                        <button class="btn-small btn-cita" onclick="adminPanel.openNewAppointmentForClient(${JSON.stringify(c).replace(/"/g, '&quot;')})">+ Cita</button>
+                        <button class="btn-small btn-perfil" onclick="adminPanel.openClientProfile('${c.telefono}')">Ver</button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+
+        // Row click → profile
+        tbody.querySelectorAll('.client-row').forEach(row => {
+            row.addEventListener('click', (e) => {
+                if (e.target.closest('button')) return;
+                this.openClientProfile(row.dataset.phone);
+            });
+        });
+    }
+
+    _clientFrequencyBadge(ultimaVisita) {
+        if (!ultimaVisita) return '<span class="freq-badge freq-new">Nueva</span>';
+        const days = Math.floor((Date.now() - new Date(ultimaVisita + 'T12:00:00')) / 86400000);
+        if (days <= 30) return `<span class="freq-badge freq-active">Activa</span>`;
+        if (days <= 90) return `<span class="freq-badge freq-medium">Regular</span>`;
+        return `<span class="freq-badge freq-inactive">Inactiva</span>`;
+    }
+
+    _visitStars(n) {
+        if (n === 0) return '';
+        const stars = Math.min(Math.ceil(n / 3), 5);
+        return `<span class="visit-stars">${'★'.repeat(stars)}${'☆'.repeat(5 - stars)}</span>`;
+    }
+
+    _formatClientDate(dateStr) {
+        const d = new Date(dateStr + 'T12:00:00');
+        const days = Math.floor((Date.now() - d) / 86400000);
+        if (days === 0) return 'Hoy';
+        if (days === 1) return 'Ayer';
+        if (days < 7) return `Hace ${days} días`;
+        if (days < 30) return `Hace ${Math.floor(days / 7)} sem.`;
+        if (days < 365) return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+        return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    async openClientProfile(phone) {
+        const dbClient = window.supabaseInstance;
+        if (!dbClient) return;
+
+        // Find client data from already loaded list
+        const clientData = (this._clientsData || []).find(c => c.telefono === phone) || { telefono: phone, nombre: '—' };
+
+        // Fetch full reservation history
+        const { data: historial } = await dbClient
+            .from('reservations')
+            .select('id, date, time, service_name, status, duration_minutes, precio_estimado, notas')
+            .eq('customer_phone', phone)
+            .order('date', { ascending: false })
+            .limit(50);
+
+        const totalGastado = (historial || [])
+            .filter(r => r.status === 'completed' && r.precio_estimado)
+            .reduce((s, r) => s + parseFloat(r.precio_estimado || 0), 0);
+
+        const servicioFav = (() => {
+            const cnt = {};
+            (historial || []).filter(r => r.status === 'completed').forEach(r => {
+                if (r.service_name) cnt[r.service_name] = (cnt[r.service_name] || 0) + 1;
+            });
+            return Object.entries(cnt).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
+        })();
+
+        const header = document.getElementById('clientModalHeader');
+        const body = document.getElementById('clientModalBody');
+        const footer = document.getElementById('clientModalFooter');
+
+        const initials = (clientData.nombre || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+        const freq = this._clientFrequencyBadge(clientData.ultima_visita);
+
+        header.innerHTML = `
+            <div class="client-profile-header">
+                <div class="client-avatar client-avatar-lg">${initials}</div>
+                <div class="client-profile-info">
+                    <h2>${clientData.nombre}</h2>
+                    <div class="client-profile-meta">
+                        <a href="tel:${phone}" class="client-meta-item">📞 ${phone}</a>
+                        ${clientData.email ? `<span class="client-meta-item">📧 ${clientData.email}</span>` : ''}
+                        ${freq}
+                    </div>
+                </div>
+            </div>`;
+
+        body.innerHTML = `
+            <!-- Stats -->
+            <div class="client-profile-stats">
+                <div class="cp-stat">
+                    <span class="cp-stat-value">${clientData.total_visitas || 0}</span>
+                    <span class="cp-stat-label">Visitas completadas</span>
+                </div>
+                <div class="cp-stat">
+                    <span class="cp-stat-value">${clientData.ultima_visita ? this._formatClientDate(clientData.ultima_visita) : '—'}</span>
+                    <span class="cp-stat-label">Última visita</span>
+                </div>
+                <div class="cp-stat">
+                    <span class="cp-stat-value">${servicioFav}</span>
+                    <span class="cp-stat-label">Servicio favorito</span>
+                </div>
+                <div class="cp-stat ${clientData.cancelaciones_tardias > 0 ? 'cp-stat-warn' : ''}">
+                    <span class="cp-stat-value">${clientData.cancelaciones_tardias || 0}</span>
+                    <span class="cp-stat-label">Cancelaciones tardías</span>
+                </div>
+                ${totalGastado > 0 ? `
+                <div class="cp-stat">
+                    <span class="cp-stat-value">${totalGastado.toFixed(0)}€</span>
+                    <span class="cp-stat-label">Total gastado</span>
+                </div>` : ''}
+            </div>
+
+            <!-- Notas -->
+            <div class="client-notes-section">
+                <label class="client-notes-label">Notas internas</label>
+                <textarea id="clientNotesInput" class="client-notes-input" rows="2"
+                    placeholder="Observaciones sobre la clienta...">${clientData.notas || ''}</textarea>
+                <button class="btn-small" onclick="adminPanel.saveClientNotes('${phone}')">Guardar notas</button>
+            </div>
+
+            <!-- Historial -->
+            <div class="client-history">
+                <h4 class="client-history-title">Historial de citas <span class="history-count">${(historial || []).length}</span></h4>
+                <div class="client-history-list">
+                    ${(historial || []).length === 0
+                        ? '<p class="text-muted" style="padding:12px 0">Sin citas registradas</p>'
+                        : (historial || []).map(r => {
+                            const color = this._getServiceColor(r.servicio_id || '');
+                            const precio = r.precio_estimado ? `${parseFloat(r.precio_estimado).toFixed(0)}€` : '';
+                            return `<div class="history-item">
+                                <div class="history-item-dot" style="background:${color}"></div>
+                                <div class="history-item-info">
+                                    <span class="history-item-date">${this.formatDate(r.date)} · ${r.time}</span>
+                                    <span class="history-item-service">${r.service_name || '—'}</span>
+                                    ${r.notas ? `<span class="history-item-notes">${r.notas}</span>` : ''}
+                                </div>
+                                <div class="history-item-right">
+                                    <span class="status-badge ${r.status}">${this.getStatusText(r.status)}</span>
+                                    ${precio ? `<span class="history-item-price">${precio}</span>` : ''}
+                                </div>
+                            </div>`;
+                        }).join('')}
+                </div>
+            </div>`;
+
+        footer.innerHTML = `
+            <button class="btn-secondary" onclick="adminPanel.closeModal('clientModal')">Cerrar</button>
+            <button class="btn-primary" onclick="adminPanel.openNewAppointmentForClient(${JSON.stringify(clientData).replace(/"/g, '&quot;')});adminPanel.closeModal('clientModal')">
+                + Nueva Cita
+            </button>`;
+
+        document.getElementById('clientModal').hidden = false;
+    }
+
+    async saveClientNotes(phone) {
+        const notes = document.getElementById('clientNotesInput')?.value || '';
+        const client = window.supabaseInstance;
+        if (!client) return;
+
+        try {
+            const { error } = await client
+                .from('clientes')
+                .update({ notas: notes, updated_at: new Date().toISOString() })
+                .eq('telefono', phone);
+
+            if (error) throw error;
+
+            // Update local cache
+            const local = (this._clientsData || []).find(c => c.telefono === phone);
+            if (local) local.notas = notes;
+
+            this.showToast('Notas guardadas', 'success');
+        } catch (err) {
+            this.showToast('Error al guardar notas: ' + err.message, 'error');
+        }
+    }
+
+    openNewAppointmentForClient(clientData) {
+        this.openNewAppointmentModal();
+        setTimeout(() => {
+            const nameEl = document.getElementById('newClientName');
+            const phoneEl = document.getElementById('newClientPhone');
+            const emailEl = document.getElementById('newClientEmail');
+            if (nameEl) nameEl.value = clientData.nombre || '';
+            if (phoneEl) phoneEl.value = clientData.telefono || '';
+            if (emailEl) emailEl.value = clientData.email || '';
+        }, 80);
     }
 
     showToast(message, type = 'info') {
