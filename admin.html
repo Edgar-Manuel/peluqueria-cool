@@ -53,6 +53,10 @@
                     <span class="nav-text">Reservas</span>
                     <span class="nav-badge" id="pendingBadge" hidden>0</span>
                 </a>
+                <a href="#agenda" class="nav-item" data-section="agenda">
+                    <span class="nav-icon">🗓️</span>
+                    <span class="nav-text">Agenda</span>
+                </a>
                 <a href="#orders" class="nav-item" data-section="orders">
                     <span class="nav-icon">📦</span>
                     <span class="nav-text">Pedidos</span>
@@ -223,6 +227,69 @@
                     </div>
                 </section>
 
+                <!-- ==================== AGENDA TIMELINE ==================== -->
+                <section id="agendaSection" class="content-section">
+                    <div class="agenda-header">
+                        <div class="agenda-date-nav">
+                            <button class="btn-icon" id="agendaPrevDay" title="Día anterior">&#8249;</button>
+                            <div class="agenda-date-display">
+                                <h2 id="agendaDayTitle">Hoy</h2>
+                                <input type="date" id="agendaDatePicker" class="agenda-date-input">
+                            </div>
+                            <button class="btn-icon" id="agendaNextDay" title="Día siguiente">&#8250;</button>
+                        </div>
+
+                        <div class="agenda-stats-bar">
+                            <div class="agenda-stat">
+                                <span class="agenda-stat-value" id="agendaCitasCount">0</span>
+                                <span class="agenda-stat-label">citas</span>
+                            </div>
+                            <div class="agenda-stat success">
+                                <span class="agenda-stat-value" id="agendaIngresos">0€</span>
+                                <span class="agenda-stat-label">estimado</span>
+                            </div>
+                            <div class="agenda-stat warning" id="agendaGapsAlert" hidden>
+                                <span class="agenda-stat-value" id="agendaGapsCount">0</span>
+                                <span class="agenda-stat-label">huecos libres</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Alerta de huecos optimizables -->
+                    <div id="agendaGapsBanner" class="gaps-banner" hidden>
+                        <span class="gaps-icon">💡</span>
+                        <div class="gaps-content">
+                            <strong>Tienes huecos disponibles</strong>
+                            <span id="agendaGapsText">Podrías añadir más citas hoy</span>
+                        </div>
+                        <button class="btn-small" onclick="adminPanel.showGapDetails()">Ver huecos</button>
+                    </div>
+
+                    <!-- Timeline visual -->
+                    <div class="timeline-wrapper">
+                        <div class="timeline-closed-msg" id="timelineClosedMsg" hidden>
+                            <span>🔒</span>
+                            <p>El salón está cerrado este día</p>
+                        </div>
+
+                        <div id="timelineContainer" class="timeline-container">
+                            <!-- Se genera dinámicamente -->
+                        </div>
+                    </div>
+
+                    <!-- Lista de citas del día (vista móvil alternativa) -->
+                    <div class="timeline-list" id="timelineList">
+                        <!-- Se genera dinámicamente -->
+                    </div>
+
+                    <!-- Empty state -->
+                    <div class="empty-state" id="agendaEmpty" hidden>
+                        <span class="empty-icon">🗓️</span>
+                        <p>No hay citas para este día</p>
+                        <button class="btn-primary" onclick="adminPanel.openNewAppointmentModal()">+ Añadir Cita</button>
+                    </div>
+                </section>
+
                 <!-- ==================== ORDERS ==================== -->
                 <section id="ordersSection" class="content-section">
                     <div class="section-header">
@@ -364,24 +431,53 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label for="newAppointmentService">Servicio *</label>
-                            <select id="newAppointmentService" required>
+                            <select id="newAppointmentService" required onchange="adminPanel.onServiceChange(this.value)">
                                 <option value="">Seleccionar servicio</option>
-                                <option value="Corte & Styling">Corte & Styling</option>
-                                <option value="Coloración">Coloración</option>
-                                <option value="Balayage">Balayage</option>
-                                <option value="Barbería">Barbería</option>
-                                <option value="Otro">Otro</option>
+                                <!-- CORTES -->
+                                <optgroup label="✂️ Cortes">
+                                    <option value="corte_hombre|Corte Hombre|30">Corte Hombre (30 min)</option>
+                                    <option value="corte_mujer|Corte Mujer|45">Corte Mujer (45 min)</option>
+                                    <option value="corte_nino|Corte Niño/a|25">Corte Niño/a (25 min)</option>
+                                    <option value="flequillo|Arreglo Flequillo|15">Arreglo Flequillo (15 min)</option>
+                                </optgroup>
+                                <!-- COLOR -->
+                                <optgroup label="🎨 Color">
+                                    <option value="tinte_raiz|Tinte Raíz|60">Tinte Raíz (60 min)</option>
+                                    <option value="tinte_completo|Tinte Completo|90">Tinte Completo (90 min)</option>
+                                    <option value="mechas|Mechas|120">Mechas (2h)</option>
+                                    <option value="mechas_parciales|Mechas Parciales|90">Mechas Parciales (90 min)</option>
+                                    <option value="decoloracion|Decoloración|120">Decoloración (2h)</option>
+                                </optgroup>
+                                <!-- PACKS COMBINADOS -->
+                                <optgroup label="✨ Packs Combinados">
+                                    <option value="tinte_corte|Tinte + Corte|110">Tinte + Corte (1h 50min)</option>
+                                    <option value="mechas_corte|Mechas + Corte|150">Mechas + Corte (2h 30min)</option>
+                                    <option value="mechas_corte_peinado|Mechas + Corte + Peinado|180">Mechas + Corte + Peinado (3h)</option>
+                                    <option value="corte_tratamiento|Corte + Tratamiento|80">Corte + Tratamiento (1h 20min)</option>
+                                </optgroup>
+                                <!-- STYLING -->
+                                <optgroup label="💫 Styling">
+                                    <option value="peinado|Peinado|45">Peinado (45 min)</option>
+                                    <option value="peinado_novia|Peinado Novia|90">Peinado Novia (90 min)</option>
+                                </optgroup>
+                                <!-- TRATAMIENTOS -->
+                                <optgroup label="💆 Tratamientos">
+                                    <option value="tratamiento|Tratamiento Capilar|60">Tratamiento Capilar (60 min)</option>
+                                    <option value="keratina|Keratina|120">Keratina (2h)</option>
+                                    <option value="lavado_secado|Lavado y Secado|20">Lavado y Secado (20 min)</option>
+                                </optgroup>
+                                <!-- OTROS -->
+                                <optgroup label="⭐ Otros">
+                                    <option value="solarium|Solárium|20">Solárium (20 min)</option>
+                                    <option value="vip|Experiencia VIP|120">Experiencia VIP (2h)</option>
+                                </optgroup>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="newAppointmentDuration">Duración Estimada</label>
-                            <select id="newAppointmentDuration">
-                                <option value="30">30 min (Express)</option>
-                                <option value="45">45 min (Estándar)</option>
-                                <option value="60">1 hora (Completo)</option>
-                                <option value="120">2 horas (Color/Tratamiento)</option>
-                                <option value="180">3 horas (Transformación)</option>
-                            </select>
+                            <label for="newAppointmentDuration">Duración <span class="label-muted">(autodetectada)</span></label>
+                            <input type="number" id="newAppointmentDuration" min="15" max="360" step="5" value="45"
+                                placeholder="minutos">
+                            <small class="form-hint" id="durationHint"></small>
                         </div>
                     </div>
 
@@ -435,8 +531,10 @@
             }
         })();
     </script>
+    <script src="schedule-config.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/reservations.js"></script>
+    <script src="js/smart-scheduler.js"></script>
     <script src="admin.js"></script>
     <!-- Modal de Configuración (Notificaciones) -->
     <div id="notificationsModal" class="modal" hidden>
