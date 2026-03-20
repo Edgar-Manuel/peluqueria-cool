@@ -7,6 +7,8 @@ class AdminPanel {
     constructor() {
         this.currentSection = 'dashboard';
         this.currentWeekOffset = 0;
+        this.currentCalendarView = 'week';
+        this.currentOffset = 0;
         this.reservationsData = [];
         this.currentFilter = 'all';
     }
@@ -112,13 +114,24 @@ class AdminPanel {
 
         // Calendar navigation
         document.getElementById('prevWeek').addEventListener('click', () => {
-            this.currentWeekOffset--;
+            this.currentOffset--;
             this.loadCalendar();
         });
 
         document.getElementById('nextWeek').addEventListener('click', () => {
-            this.currentWeekOffset++;
+            this.currentOffset++;
             this.loadCalendar();
+        });
+
+        // Calendar view switcher
+        document.querySelectorAll('.cal-view-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.cal-view-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.currentCalendarView = btn.dataset.view;
+                this.currentOffset = 0;
+                this.loadCalendar();
+            });
         });
 
         // Filter buttons
@@ -222,57 +235,204 @@ class AdminPanel {
         }
     }
 
+    getServiceInfo(serviceId, serviceName) {
+        const config = window.scheduleConfig && window.scheduleConfig.services && window.scheduleConfig.services[serviceId];
+        if (config) return { color: config.color, name: config.name, category: config.category };
+        const n = (serviceName || serviceId || '').toLowerCase();
+        if (n.includes('corte') || n.includes('flequillo') || n.includes('niño') || n.includes('nino'))
+            return { color: '#10b981', name: serviceName || serviceId, category: 'corte' };
+        if (n.includes('tinte') || n.includes('mecha') || n.includes('decol') || n.includes('color'))
+            return { color: '#f59e0b', name: serviceName || serviceId, category: 'color' };
+        if (n.includes('peinado') || n.includes('novia'))
+            return { color: '#8b5cf6', name: serviceName || serviceId, category: 'styling' };
+        if (n.includes('tratamiento') || n.includes('keratina') || n.includes('lavado') || n.includes('secado'))
+            return { color: '#06b6d4', name: serviceName || serviceId, category: 'tratamiento' };
+        if (n.includes('solarium') || n.includes('vip'))
+            return { color: '#f97316', name: serviceName || serviceId, category: 'otro' };
+        return { color: '#3b82f6', name: serviceName || serviceId, category: 'otro' };
+    }
+
     async loadCalendar() {
+        const view = this.currentCalendarView;
+        if (view === 'day') {
+            await this.loadCalendarDay(this.currentOffset);
+        } else if (view === 'month') {
+            await this.loadCalendarMonth(this.currentOffset);
+        } else {
+            await this.loadCalendarWeek(this.currentOffset);
+        }
+    }
+
+    async loadCalendarWeek(offset) {
         const calendarGrid = document.getElementById('calendarGrid');
         const calendarTitle = document.getElementById('calendarTitle');
-
-        // Calcular semana
         const today = new Date();
         const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay() + 1 + (this.currentWeekOffset * 7));
-
+        startOfWeek.setDate(today.getDate() - today.getDay() + 1 + (offset * 7));
         const endOfWeek = new Date(startOfWeek);
         endOfWeek.setDate(startOfWeek.getDate() + 6);
 
-        // Título
         const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
             'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
         calendarTitle.textContent = `${startOfWeek.getDate()} - ${endOfWeek.getDate()} ${monthNames[startOfWeek.getMonth()]}`;
 
-        // Obtener reservas de la semana
         const weekReservations = await reservations.getAll({
             dateFrom: startOfWeek.toISOString().split('T')[0],
             dateTo: endOfWeek.toISOString().split('T')[0]
         });
 
-        // Generar días
         const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-        let calendarHTML = '';
+        const todayStr = today.toISOString().split('T')[0];
+        let html = '<div class="cal-week-grid">';
 
         for (let i = 0; i < 7; i++) {
             const day = new Date(startOfWeek);
             day.setDate(startOfWeek.getDate() + i);
             const dateStr = day.toISOString().split('T')[0];
-            const isToday = dateStr === today.toISOString().split('T')[0];
+            const isToday = dateStr === todayStr;
+            const dayRes = weekReservations.filter(r => r.date === dateStr);
 
-            // Filtrar reservas de este día
-            const dayReservations = weekReservations.filter(r => r.date === dateStr);
+            html += `<div class="calendar-day ${isToday ? 'today' : ''}">
+                <div class="calendar-day-header">${dayNames[i]}</div>
+                <div class="calendar-day-number">${day.getDate()}</div>
+                ${dayRes.slice(0, 3).map(r => {
+                    const si = this.getServiceInfo(r.service, r.service_name);
+                    return `<div class="calendar-event" style="background:${si.color}" title="${r.customer_name} - ${si.name}">${r.time} ${r.customer_name.split(' ')[0]}</div>`;
+                }).join('')}
+                ${dayRes.length > 3 ? `<div class="calendar-event cal-event-more">+${dayRes.length - 3} más</div>` : ''}
+            </div>`;
+        }
+        html += '</div>';
+        calendarGrid.innerHTML = html;
+    }
 
-            calendarHTML += `
-                <div class="calendar-day ${isToday ? 'today' : ''}">
-                    <div class="calendar-day-header">${dayNames[i]}</div>
-                    <div class="calendar-day-number">${day.getDate()}</div>
-                    ${dayReservations.slice(0, 3).map(r => `
-                        <div class="calendar-event ${r.status}" title="${r.customer_name} - ${r.service_name || r.service}">
-                            ${r.time} ${r.customer_name.split(' ')[0]}
+    async loadCalendarDay(offset) {
+        const calendarGrid = document.getElementById('calendarGrid');
+        const calendarTitle = document.getElementById('calendarTitle');
+        const today = new Date();
+        const viewDay = new Date(today);
+        viewDay.setDate(today.getDate() + offset);
+        const dateStr = viewDay.toISOString().split('T')[0];
+
+        const dayNamesLong = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+        const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+            'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        calendarTitle.textContent = `${dayNamesLong[viewDay.getDay()]} ${viewDay.getDate()} ${monthNames[viewDay.getMonth()]}`;
+
+        const dayReservations = await reservations.getAll({ dateFrom: dateStr, dateTo: dateStr });
+
+        const startHour = 9, endHour = 20;
+        let html = '<div class="cal-day-view">';
+
+        for (let h = startHour; h < endHour; h++) {
+            for (let m = 0; m < 60; m += 30) {
+                const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+                const slotMin = h * 60 + m;
+
+                const res = dayReservations.find(r => r.time === timeStr);
+                const isContinuation = !res && dayReservations.some(r => {
+                    const [rh, rm] = r.time.split(':').map(Number);
+                    const rStart = rh * 60 + rm;
+                    const rEnd = rStart + (r.duration_minutes || 30);
+                    return slotMin > rStart && slotMin < rEnd;
+                });
+
+                if (isContinuation) continue;
+
+                if (res) {
+                    const si = this.getServiceInfo(res.service, res.service_name);
+                    const dur = res.duration_minutes || 30;
+                    html += `<div class="cal-day-slot cal-day-booked" style="border-left:3px solid ${si.color};background:${si.color}18" data-id="${res.id}">
+                        <span class="cal-day-time">${timeStr}</span>
+                        <div class="cal-day-event-info">
+                            <span class="cal-day-client">${res.customer_name}</span>
+                            <span class="cal-day-service" style="color:${si.color}">${res.service_name || res.service}</span>
                         </div>
-                    `).join('')}
-                    ${dayReservations.length > 3 ? `<div class="calendar-event">+${dayReservations.length - 3} más</div>` : ''}
-                </div>
-            `;
+                        <span class="cal-day-duration">${dur}min</span>
+                    </div>`;
+                } else {
+                    html += `<div class="cal-day-slot cal-day-free">
+                        <span class="cal-day-time">${timeStr}</span>
+                        <span class="cal-day-free-label">Libre</span>
+                    </div>`;
+                }
+            }
         }
 
-        calendarGrid.innerHTML = calendarHTML;
+        html += '</div>';
+        calendarGrid.innerHTML = html;
+
+        calendarGrid.querySelectorAll('.cal-day-booked').forEach(el => {
+            el.addEventListener('click', () => {
+                const id = el.dataset.id;
+                const res = dayReservations.find(r => r.id === id);
+                if (res) this.showReservationModal(res);
+            });
+        });
+    }
+
+    async loadCalendarMonth(offset) {
+        const calendarGrid = document.getElementById('calendarGrid');
+        const calendarTitle = document.getElementById('calendarTitle');
+        const today = new Date();
+        const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+            'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+        const viewDate = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+        const year = viewDate.getFullYear();
+        const month = viewDate.getMonth();
+        calendarTitle.textContent = `${monthNames[month]} ${year}`;
+
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const dateFrom = firstDay.toISOString().split('T')[0];
+        const dateTo = lastDay.toISOString().split('T')[0];
+
+        const monthReservations = await reservations.getAll({ dateFrom, dateTo });
+        const byDate = {};
+        monthReservations.forEach(r => {
+            if (!byDate[r.date]) byDate[r.date] = [];
+            byDate[r.date].push(r);
+        });
+
+        let startDow = firstDay.getDay();
+        if (startDow === 0) startDow = 7;
+        const emptyCells = startDow - 1;
+        const todayStr = today.toISOString().split('T')[0];
+
+        let html = '<div class="cal-month-view"><div class="cal-month-header">';
+        ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].forEach(d => {
+            html += `<div class="cal-month-dow">${d}</div>`;
+        });
+        html += '</div><div class="cal-month-grid">';
+
+        for (let i = 0; i < emptyCells; i++) {
+            html += '<div class="cal-month-cell cal-month-empty"></div>';
+        }
+
+        for (let d = 1; d <= lastDay.getDate(); d++) {
+            const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const isToday = dateStr === todayStr;
+            const dayRes = byDate[dateStr] || [];
+
+            html += `<div class="cal-month-cell ${isToday ? 'cal-month-today' : ''}">
+                <div class="cal-month-day-num">${d}</div>
+                <div class="cal-month-events">`;
+
+            dayRes.slice(0, 2).forEach(r => {
+                const si = this.getServiceInfo(r.service, r.service_name);
+                html += `<div class="cal-month-event" style="background:${si.color}" title="${r.time} - ${r.customer_name} (${r.service_name || r.service})">${r.time} ${r.customer_name.split(' ')[0]}</div>`;
+            });
+
+            if (dayRes.length > 2) {
+                html += `<div class="cal-month-more">+${dayRes.length - 2}</div>`;
+            }
+
+            html += '</div></div>';
+        }
+
+        html += '</div></div>';
+        calendarGrid.innerHTML = html;
     }
 
     async loadTodayAppointments() {
