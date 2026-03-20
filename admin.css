@@ -1195,3 +1195,543 @@ body {
         padding: 16px;
     }
 }
+
+/* ================================================================
+   AGENDA TIMELINE - Vista de agenda con línea temporal
+   ================================================================ */
+
+/* Header de la agenda */
+.agenda-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.agenda-date-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.agenda-date-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 180px;
+}
+
+.agenda-date-display h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    text-transform: capitalize;
+}
+
+.agenda-date-input {
+    background: var(--admin-surface-hover);
+    border: 1px solid var(--admin-border);
+    border-radius: var(--radius-sm);
+    color: var(--admin-text);
+    font-size: 12px;
+    padding: 2px 8px;
+    margin-top: 2px;
+    cursor: pointer;
+}
+
+.agenda-date-input:focus {
+    outline: none;
+    border-color: var(--admin-accent);
+}
+
+/* Stats bar de la agenda */
+.agenda-stats-bar {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.agenda-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 16px;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: var(--radius-sm);
+    min-width: 70px;
+}
+
+.agenda-stat.success {
+    border-color: rgba(16, 185, 129, 0.3);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.agenda-stat.warning {
+    border-color: rgba(245, 158, 11, 0.3);
+    background: rgba(245, 158, 11, 0.05);
+}
+
+.agenda-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--admin-text);
+    line-height: 1;
+}
+
+.agenda-stat.success .agenda-stat-value { color: var(--admin-success); }
+.agenda-stat.warning .agenda-stat-value { color: var(--admin-warning); }
+
+.agenda-stat-label {
+    font-size: 11px;
+    color: var(--admin-text-muted);
+    margin-top: 3px;
+}
+
+/* Banner de huecos optimizables */
+.gaps-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: var(--radius-sm);
+    margin-bottom: 16px;
+}
+
+.gaps-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.gaps-content {
+    flex: 1;
+    font-size: 13px;
+}
+
+.gaps-content strong {
+    display: block;
+    color: var(--admin-warning);
+}
+
+.gaps-content span {
+    color: var(--admin-text-muted);
+}
+
+.btn-small {
+    padding: 6px 12px;
+    background: var(--admin-warning);
+    color: #1a1a1a;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: var(--transition);
+}
+
+.btn-small:hover {
+    opacity: 0.85;
+}
+
+/* ===== TIMELINE CONTAINER ===== */
+.timeline-wrapper {
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.timeline-closed-msg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 48px;
+    color: var(--admin-text-muted);
+    font-size: 18px;
+}
+
+.timeline-closed-msg span {
+    font-size: 40px;
+}
+
+.timeline-container {
+    position: relative;
+    overflow-x: auto;
+    padding: 16px;
+    min-height: 120px;
+}
+
+/* Escala de horas en la parte superior */
+.timeline-scale {
+    display: flex;
+    position: relative;
+    height: 24px;
+    margin-bottom: 8px;
+}
+
+.timeline-hour-mark {
+    position: absolute;
+    font-size: 11px;
+    color: var(--admin-text-muted);
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+/* Línea base del timeline */
+.timeline-track {
+    position: relative;
+    height: 72px;
+    background: var(--admin-surface-hover);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+/* Bloques de horas en el fondo */
+.timeline-hour-grid {
+    position: absolute;
+    inset: 0;
+    display: flex;
+}
+
+.timeline-hour-cell {
+    flex: 1;
+    border-right: 1px solid var(--admin-border);
+    opacity: 0.4;
+}
+
+.timeline-hour-cell:last-child {
+    border-right: none;
+}
+
+/* Bloques de citas */
+.timeline-appointment {
+    position: absolute;
+    top: 6px;
+    height: 60px;
+    border-radius: 6px;
+    padding: 6px 8px;
+    cursor: pointer;
+    transition: filter 0.15s, transform 0.15s;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 40px;
+    color: white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    user-select: none;
+}
+
+.timeline-appointment:hover {
+    filter: brightness(1.15);
+    transform: translateY(-1px);
+    z-index: 2;
+}
+
+.timeline-appointment:active {
+    transform: scale(0.98);
+}
+
+.timeline-appt-name {
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+.timeline-appt-service {
+    font-size: 10px;
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+
+.timeline-appt-time {
+    font-size: 10px;
+    opacity: 0.75;
+    margin-top: 1px;
+}
+
+/* Bloque de CIERRE (comida/tarde) */
+.timeline-closed-block {
+    position: absolute;
+    top: 0;
+    height: 72px;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 4px,
+        rgba(0,0,0,0.15) 4px,
+        rgba(0,0,0,0.15) 8px
+    );
+    background-color: var(--admin-surface);
+    border-left: 1px solid var(--admin-border);
+    border-right: 1px solid var(--admin-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--admin-text-muted);
+}
+
+/* Huecos libres aprovechables */
+.timeline-gap {
+    position: absolute;
+    top: 18px;
+    height: 36px;
+    border: 1.5px dashed rgba(245, 158, 11, 0.5);
+    border-radius: 4px;
+    background: rgba(245, 158, 11, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: rgba(245, 158, 11, 0.8);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.timeline-gap:hover {
+    background: rgba(245, 158, 11, 0.12);
+}
+
+/* Indicador de hora actual */
+.timeline-now {
+    position: absolute;
+    top: 0;
+    width: 2px;
+    height: 72px;
+    background: var(--admin-danger);
+    z-index: 3;
+    pointer-events: none;
+}
+
+.timeline-now::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    width: 10px;
+    height: 10px;
+    background: var(--admin-danger);
+    border-radius: 50%;
+}
+
+/* Status por color en el bloque */
+.timeline-appointment.status-pending   { opacity: 0.85; }
+.timeline-appointment.status-confirmed { opacity: 1; }
+.timeline-appointment.status-completed { filter: grayscale(0.3); }
+
+/* ===== TIMELINE LIST (vista de lista debajo del timeline) ===== */
+.timeline-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.timeline-list-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: var(--radius-sm);
+    border-left: 4px solid var(--admin-accent);
+    cursor: pointer;
+    transition: var(--transition);
+    position: relative;
+}
+
+.timeline-list-item:hover {
+    background: var(--admin-surface-hover);
+    transform: translateX(2px);
+}
+
+.timeline-list-item:active {
+    transform: translateX(0);
+}
+
+.tli-time {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 52px;
+}
+
+.tli-time-start {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--admin-text);
+    line-height: 1;
+}
+
+.tli-time-end {
+    font-size: 11px;
+    color: var(--admin-text-muted);
+    margin-top: 2px;
+}
+
+.tli-color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.tli-info {
+    flex: 1;
+}
+
+.tli-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--admin-text);
+}
+
+.tli-service {
+    font-size: 12px;
+    color: var(--admin-text-muted);
+    margin-top: 1px;
+}
+
+.tli-duration {
+    font-size: 11px;
+    color: var(--admin-text-muted);
+    margin-top: 1px;
+}
+
+.tli-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.tli-badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.tli-badge.pending   { background: rgba(139,92,246,0.15); color: #a78bfa; }
+.tli-badge.confirmed { background: rgba(16,185,129,0.15); color: var(--admin-success); }
+.tli-badge.completed { background: rgba(59,130,246,0.15); color: var(--admin-accent); }
+.tli-badge.cancelled { background: rgba(239,68,68,0.15);  color: var(--admin-danger); }
+
+.tli-phone {
+    font-size: 11px;
+    color: var(--admin-accent);
+    text-decoration: none;
+}
+
+/* Warning: cliente con cancelaciones tardías */
+.tli-warning {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 14px;
+    cursor: help;
+}
+
+/* Bloque de hueco libre en la lista */
+.timeline-gap-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border: 1.5px dashed rgba(245, 158, 11, 0.4);
+    border-radius: var(--radius-sm);
+    background: rgba(245, 158, 11, 0.03);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.timeline-gap-item:hover {
+    background: rgba(245, 158, 11, 0.07);
+}
+
+.tgi-icon {
+    font-size: 18px;
+}
+
+.tgi-info {
+    flex: 1;
+}
+
+.tgi-time {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(245, 158, 11, 0.9);
+}
+
+.tgi-services {
+    font-size: 11px;
+    color: var(--admin-text-muted);
+    margin-top: 1px;
+}
+
+/* ===== LABEL MUTED ===== */
+.label-muted {
+    color: var(--admin-text-muted);
+    font-weight: 400;
+    font-size: 11px;
+}
+
+.form-hint {
+    font-size: 11px;
+    color: var(--admin-accent);
+    min-height: 16px;
+}
+
+/* ===== AGENDA RESPONSIVE ===== */
+@media (max-width: 768px) {
+    .agenda-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .agenda-date-nav {
+        justify-content: center;
+    }
+
+    .agenda-stats-bar {
+        justify-content: center;
+    }
+
+    .timeline-container {
+        padding: 10px;
+    }
+
+    /* En móvil, ocultar timeline gráfico y mostrar solo la lista */
+    .timeline-wrapper {
+        display: none;
+    }
+
+    .timeline-list {
+        display: flex;
+    }
+
+    .tli-actions {
+        flex-direction: column;
+    }
+}
+
+@media (min-width: 769px) {
+    /* En escritorio, mostrar ambos */
+    .timeline-list {
+        margin-top: 8px;
+    }
+}

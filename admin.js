@@ -168,6 +168,7 @@ class AdminPanel {
         const titles = {
             dashboard: 'Dashboard',
             reservations: 'Reservas',
+            agenda: 'Agenda del Día',
             orders: 'Pedidos',
             products: 'Productos',
             clients: 'Clientes',
@@ -180,6 +181,8 @@ class AdminPanel {
         // Load section data
         if (section === 'reservations') {
             this.loadReservations();
+        } else if (section === 'agenda') {
+            this.initAgenda();
         }
     }
 
@@ -628,15 +631,22 @@ class AdminPanel {
             return;
         }
 
+        // Parse service value: "id|nombre|duracion"
+        const serviceRaw = document.getElementById('newAppointmentService').value;
+        const serviceParts = serviceRaw.split('|');
+        const servicioId = serviceParts[0] || serviceRaw;
+        const servicioNombre = serviceParts[1] || serviceRaw;
+        const duracionDetectada = serviceParts[2] ? parseInt(serviceParts[2]) : null;
+
         const data = {
             nombre: document.getElementById('newClientName').value.trim(),
             telefono: document.getElementById('newClientPhone').value.trim(),
             email: document.getElementById('newClientEmail').value.trim() || null,
             fecha: document.getElementById('newAppointmentDate').value,
             hora: document.getElementById('newAppointmentTime').value,
-            servicio: document.getElementById('newAppointmentService').value,
-            servicioNombre: document.getElementById('newAppointmentService').value,
-            duracion: document.getElementById('newAppointmentDuration').value,
+            servicio: servicioId,
+            servicioNombre: servicioNombre,
+            duracion: duracionDetectada || parseInt(document.getElementById('newAppointmentDuration').value) || 45,
             notas: document.getElementById('newAppointmentNotes').value.trim() || null,
             status: document.getElementById('newAppointmentStatus').value,
             fuente: 'manual'
@@ -666,6 +676,8 @@ class AdminPanel {
             await this.loadDashboard();
             if (this.currentSection === 'reservations') {
                 await this.loadReservations();
+            } else if (this.currentSection === 'agenda') {
+                await this.loadAgenda(this.agendaDate);
             }
 
         } catch (error) {
@@ -813,6 +825,401 @@ class AdminPanel {
         if (days < 7) return `Hace ${days} días`;
 
         return date.toLocaleDateString('es-ES');
+    }
+
+    // ==================== AGENDA / TIMELINE ====================
+
+    initAgenda() {
+        if (this._agendaInitialized) {
+            this.loadAgenda(this.agendaDate);
+            return;
+        }
+        this._agendaInitialized = true;
+
+        // Set today as default
+        const today = new Date();
+        this.agendaDate = today.toISOString().split('T')[0];
+
+        const picker = document.getElementById('agendaDatePicker');
+        picker.value = this.agendaDate;
+        picker.addEventListener('change', (e) => {
+            this.agendaDate = e.target.value;
+            this.loadAgenda(this.agendaDate);
+        });
+
+        document.getElementById('agendaPrevDay').addEventListener('click', () => {
+            const d = new Date(this.agendaDate + 'T12:00:00');
+            d.setDate(d.getDate() - 1);
+            this.agendaDate = d.toISOString().split('T')[0];
+            picker.value = this.agendaDate;
+            this.loadAgenda(this.agendaDate);
+        });
+
+        document.getElementById('agendaNextDay').addEventListener('click', () => {
+            const d = new Date(this.agendaDate + 'T12:00:00');
+            d.setDate(d.getDate() + 1);
+            this.agendaDate = d.toISOString().split('T')[0];
+            picker.value = this.agendaDate;
+            this.loadAgenda(this.agendaDate);
+        });
+
+        this.loadAgenda(this.agendaDate);
+    }
+
+    async loadAgenda(dateStr) {
+        // Update title
+        const d = new Date(dateStr + 'T12:00:00');
+        const isToday = dateStr === new Date().toISOString().split('T')[0];
+        const dayTitle = isToday
+            ? 'Hoy — ' + d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+            : d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        document.getElementById('agendaDayTitle').textContent = dayTitle;
+
+        // Check if closed
+        const isClosed = await (window.smartScheduler?.isDayClosed(dateStr) ?? false);
+        document.getElementById('timelineClosedMsg').hidden = !isClosed;
+        document.getElementById('timelineContainer').style.display = isClosed ? 'none' : '';
+        document.getElementById('agendaEmpty').hidden = true;
+
+        if (isClosed) {
+            this._clearAgendaStats();
+            document.getElementById('timelineList').innerHTML = '';
+            return;
+        }
+
+        // Get schedule for day
+        const daySched = window.smartScheduler?.getDaySchedule(dateStr);
+        if (!daySched) {
+            document.getElementById('timelineClosedMsg').hidden = false;
+            document.getElementById('timelineContainer').style.display = 'none';
+            this._clearAgendaStats();
+            return;
+        }
+
+        // Fetch appointments
+        const client = window.supabaseInstance;
+        if (!client) return;
+
+        const { data: appts, error } = await client
+            .from('reservations')
+            .select('*')
+            .eq('date', dateStr)
+            .not('status', 'in', '("cancelled","rejected")')
+            .order('time', { ascending: true });
+
+        if (error) {
+            console.error('Agenda error:', error);
+            return;
+        }
+
+        // Calculate stats
+        const totalIngresos = (appts || []).reduce((sum, a) => sum + (a.precio_estimado || 0), 0);
+        document.getElementById('agendaCitasCount').textContent = (appts || []).length;
+        document.getElementById('agendaIngresos').textContent = totalIngresos > 0 ? `${totalIngresos}€` : '—';
+
+        // Show/hide empty state
+        document.getElementById('agendaEmpty').hidden = (appts || []).length > 0;
+
+        // Calculate optimizable gaps
+        if (window.smartScheduler) {
+            const gaps = await smartScheduler.getOptimizableGaps(dateStr);
+            const gapsAlert = document.getElementById('agendaGapsAlert');
+            const gapsBanner = document.getElementById('agendaGapsBanner');
+            if (gaps.length > 0) {
+                document.getElementById('agendaGapsCount').textContent = gaps.length;
+                gapsAlert.hidden = false;
+                gapsBanner.hidden = false;
+                document.getElementById('agendaGapsText').textContent =
+                    gaps.map(g => `${g.inicio}–${g.fin} (${g.duracion} min libre)`).join(' · ');
+                this._pendingGaps = gaps;
+            } else {
+                gapsAlert.hidden = true;
+                gapsBanner.hidden = true;
+            }
+        }
+
+        // Render timeline
+        this.renderTimeline(daySched, appts || [], dateStr);
+
+        // Render list (mobile-friendly)
+        this.renderTimelineList(appts || [], dateStr);
+    }
+
+    _clearAgendaStats() {
+        document.getElementById('agendaCitasCount').textContent = '0';
+        document.getElementById('agendaIngresos').textContent = '—';
+        document.getElementById('agendaGapsAlert').hidden = true;
+        document.getElementById('agendaGapsBanner').hidden = true;
+    }
+
+    renderTimeline(daySched, appts, dateStr) {
+        const container = document.getElementById('timelineContainer');
+        const scheduler = window.smartScheduler || { timeToMinutes: (t) => { const [h,m] = t.split(':').map(Number); return h*60+m; }, minutesToTime: (m) => String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0') };
+
+        const { open, close } = daySched;
+        const totalMinutes = close - open;
+        if (totalMinutes <= 0) return;
+
+        // Percentage helper
+        const pct = (minutes) => ((minutes - open) / totalMinutes * 100).toFixed(2);
+        const widthPct = (dur) => (dur / totalMinutes * 100).toFixed(2);
+
+        // Build appointments with end times
+        const citasConFin = appts.map(a => {
+            const inicio = scheduler.timeToMinutes(a.time);
+            const dur = a.duration_minutes || 45;
+            const fin = a.hora_fin ? scheduler.timeToMinutes(a.hora_fin) : inicio + dur;
+            const color = this._getServiceColor(a.servicio_id || a.service);
+            return { ...a, _inicio: inicio, _fin: fin, _color: color };
+        });
+
+        // Detect lunch break (gap between morning and afternoon)
+        // Find morning close and afternoon open from schedule
+        const hasMorning = daySched.openStr < '14:00';
+        const hasAfternoon = daySched.closeStr > '14:00';
+        const morningClose = hasMorning && hasAfternoon ? 14 * 60 : null;
+        const afternoonOpen = hasMorning && hasAfternoon ? 16 * 60 : null;
+
+        // Scale labels
+        const scaleEl = document.createElement('div');
+        scaleEl.className = 'timeline-scale';
+        const hoursToShow = [];
+        for (let h = Math.floor(open / 60); h <= Math.ceil(close / 60); h++) {
+            hoursToShow.push(h * 60);
+        }
+
+        hoursToShow.forEach(hMin => {
+            if (hMin < open || hMin > close) return;
+            const mark = document.createElement('span');
+            mark.className = 'timeline-hour-mark';
+            mark.style.left = pct(hMin) + '%';
+            mark.textContent = String(Math.floor(hMin / 60)).padStart(2, '0') + ':00';
+            scaleEl.appendChild(mark);
+        });
+
+        // Track
+        const track = document.createElement('div');
+        track.className = 'timeline-track';
+
+        // Lunch break block
+        if (morningClose && afternoonOpen) {
+            const block = document.createElement('div');
+            block.className = 'timeline-closed-block';
+            block.style.left = pct(morningClose) + '%';
+            block.style.width = widthPct(afternoonOpen - morningClose) + '%';
+            block.textContent = 'Cerrado';
+            track.appendChild(block);
+        }
+
+        // Appointment blocks
+        citasConFin.forEach(cita => {
+            const startPct = pct(cita._inicio);
+            const wPct = widthPct(cita._fin - cita._inicio);
+            const block = document.createElement('div');
+            block.className = `timeline-appointment status-${cita.status}`;
+            block.style.left = startPct + '%';
+            block.style.width = Math.max(parseFloat(wPct), 2) + '%';
+            block.style.backgroundColor = cita._color;
+            block.innerHTML = `
+                <div class="timeline-appt-name">${cita.customer_name}</div>
+                <div class="timeline-appt-service">${cita.service_name || cita.service || ''}</div>
+                <div class="timeline-appt-time">${cita.time}–${cita.hora_fin || ''}</div>
+            `;
+            block.addEventListener('click', () => this.openReservationDetails(cita.id));
+            track.appendChild(block);
+        });
+
+        // Current time indicator (only for today)
+        const today = new Date().toISOString().split('T')[0];
+        if (dateStr === today) {
+            const now = new Date();
+            const nowMin = now.getHours() * 60 + now.getMinutes();
+            if (nowMin >= open && nowMin <= close) {
+                const nowLine = document.createElement('div');
+                nowLine.className = 'timeline-now';
+                nowLine.style.left = pct(nowMin) + '%';
+                track.appendChild(nowLine);
+            }
+        }
+
+        // Gaps (optimizable)
+        if (this._pendingGaps && dateStr === this.agendaDate) {
+            this._pendingGaps.forEach(gap => {
+                const gapStart = scheduler.timeToMinutes(gap.inicio);
+                const gapEnd = scheduler.timeToMinutes(gap.fin);
+                const gEl = document.createElement('div');
+                gEl.className = 'timeline-gap';
+                gEl.style.left = pct(gapStart) + '%';
+                gEl.style.width = widthPct(gapEnd - gapStart) + '%';
+                gEl.title = `${gap.duracion} min libre`;
+                gEl.textContent = `${gap.duracion}m`;
+                gEl.addEventListener('click', () => this.openNewAppointmentAtTime(gap.inicio, dateStr));
+                track.appendChild(gEl);
+            });
+        }
+
+        container.innerHTML = '';
+        container.appendChild(scaleEl);
+        container.appendChild(track);
+    }
+
+    renderTimelineList(appts, dateStr) {
+        const list = document.getElementById('timelineList');
+        const scheduler = window.smartScheduler;
+        list.innerHTML = '';
+
+        if (appts.length === 0) return;
+
+        // Insert gap items between appointments
+        const itemsWithGaps = [];
+        const sorted = [...appts].sort((a, b) => a.time.localeCompare(b.time));
+
+        sorted.forEach((appt, i) => {
+            itemsWithGaps.push({ type: 'appt', data: appt });
+
+            // Check gap after this appointment
+            if (scheduler && i < sorted.length - 1) {
+                const thisEnd = appt.hora_fin || scheduler.minutesToTime(
+                    scheduler.timeToMinutes(appt.time) + (appt.duration_minutes || 45)
+                );
+                const nextStart = sorted[i + 1].time;
+                const thisEndMin = scheduler.timeToMinutes(thisEnd);
+                const nextStartMin = scheduler.timeToMinutes(nextStart);
+                const gapMin = nextStartMin - thisEndMin - (scheduler.bufferMinutos || 10);
+                if (gapMin >= 15) {
+                    itemsWithGaps.push({
+                        type: 'gap',
+                        data: {
+                            inicio: thisEnd,
+                            fin: nextStart,
+                            duracion: gapMin,
+                            servicios: scheduler.getServiciosParaHueco(gapMin)
+                        }
+                    });
+                }
+            }
+        });
+
+        itemsWithGaps.forEach(item => {
+            if (item.type === 'appt') {
+                list.appendChild(this._buildTimelineListItem(item.data));
+            } else {
+                list.appendChild(this._buildTimelineGapItem(item.data, dateStr));
+            }
+        });
+    }
+
+    _buildTimelineListItem(appt) {
+        const color = this._getServiceColor(appt.servicio_id || appt.service);
+        const duracion = appt.duration_minutes || 45;
+        const horaFin = appt.hora_fin || '';
+
+        const el = document.createElement('div');
+        el.className = 'timeline-list-item';
+        el.style.borderLeftColor = color;
+        el.innerHTML = `
+            <div class="tli-time">
+                <span class="tli-time-start">${appt.time}</span>
+                ${horaFin ? `<span class="tli-time-end">${horaFin}</span>` : ''}
+            </div>
+            <div class="tli-color-dot" style="background:${color}"></div>
+            <div class="tli-info">
+                <div class="tli-name">${appt.customer_name}</div>
+                <div class="tli-service">${appt.service_name || appt.service || ''}</div>
+                <div class="tli-duration">${duracion} min · <a href="tel:${appt.customer_phone}" class="tli-phone">${appt.customer_phone}</a></div>
+            </div>
+            <div class="tli-actions">
+                <span class="tli-badge ${appt.status}">${this._translateStatus(appt.status)}</span>
+            </div>
+        `;
+        el.addEventListener('click', () => this.openReservationDetails(appt.id));
+        return el;
+    }
+
+    _buildTimelineGapItem(gap, dateStr) {
+        const serviciosText = gap.servicios && gap.servicios.length > 0
+            ? 'Caben: ' + gap.servicios.slice(0, 3).map(s => s.nombre).join(', ')
+            : 'Hueco libre';
+
+        const el = document.createElement('div');
+        el.className = 'timeline-gap-item';
+        el.innerHTML = `
+            <span class="tgi-icon">💡</span>
+            <div class="tgi-info">
+                <div class="tgi-time">Hueco: ${gap.inicio} – ${gap.fin} (${gap.duracion} min)</div>
+                <div class="tgi-services">${serviciosText}</div>
+            </div>
+            <button class="btn-small" style="font-size:11px;">+ Cita</button>
+        `;
+        el.querySelector('.btn-small').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.openNewAppointmentAtTime(gap.inicio, dateStr);
+        });
+        return el;
+    }
+
+    _getServiceColor(serviceId) {
+        if (!serviceId) return '#3b82f6';
+        if (typeof SCHEDULE_CONFIG !== 'undefined' && SCHEDULE_CONFIG.services[serviceId]) {
+            return SCHEDULE_CONFIG.services[serviceId].color || '#3b82f6';
+        }
+        // Fallback colors by category keyword
+        const colorMap = {
+            corte: '#10b981', color: '#f59e0b', tinte: '#f59e0b',
+            mechas: '#d97706', peinado: '#8b5cf6', tratamiento: '#06b6d4',
+            solarium: '#f97316', vip: '#ec4899', lavado: '#6b7280',
+            keratina: '#0891b2'
+        };
+        for (const [key, col] of Object.entries(colorMap)) {
+            if (serviceId.includes(key)) return col;
+        }
+        return '#3b82f6';
+    }
+
+    _translateStatus(status) {
+        const map = { pending: 'Pendiente', confirmed: 'Confirmada', completed: 'Completada', cancelled: 'Cancelada', rejected: 'Rechazada' };
+        return map[status] || status;
+    }
+
+    showGapDetails() {
+        if (!this._pendingGaps || this._pendingGaps.length === 0) return;
+        const text = this._pendingGaps.map(g =>
+            `• ${g.inicio}–${g.fin} (${g.duracion} min)\n  Caben: ${g.servicios_que_caben?.map(s => s.nombre).join(', ') || 'varios servicios'}`
+        ).join('\n\n');
+        alert('Huecos disponibles hoy:\n\n' + text + '\n\nToca cualquier hueco en la agenda para añadir una cita.');
+    }
+
+    openNewAppointmentAtTime(hora, fecha) {
+        this.openNewAppointmentModal();
+        // Pre-fill date and time after modal opens
+        setTimeout(() => {
+            const dateInput = document.getElementById('newAppointmentDate');
+            const timeSelect = document.getElementById('newAppointmentTime');
+            if (dateInput) dateInput.value = fecha || this.agendaDate;
+            if (timeSelect) {
+                // Find the closest option
+                const opts = [...timeSelect.options];
+                const match = opts.find(o => o.value === hora);
+                if (match) timeSelect.value = hora;
+            }
+        }, 100);
+    }
+
+    // Called when service changes in the new appointment form
+    onServiceChange(value) {
+        if (!value) return;
+        const parts = value.split('|');
+        if (parts.length >= 3) {
+            const dur = parseInt(parts[2]);
+            const durInput = document.getElementById('newAppointmentDuration');
+            const hint = document.getElementById('durationHint');
+            if (durInput) durInput.value = dur;
+            if (hint) {
+                const h = Math.floor(dur / 60);
+                const m = dur % 60;
+                hint.textContent = h > 0 ? `${h}h ${m > 0 ? m + 'min' : ''}` : `${m} minutos`;
+            }
+        }
     }
 
     showToast(message, type = 'info') {
