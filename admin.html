@@ -330,12 +330,57 @@
 
                 <!-- ==================== CLIENTS ==================== -->
                 <section id="clientsSection" class="content-section">
-                    <div class="section-header">
-                        <h3>Base de Clientes</h3>
+
+                    <!-- KPIs + búsqueda -->
+                    <div class="clients-header">
+                        <div class="clients-search-wrap">
+                            <span class="clients-search-icon">🔍</span>
+                            <input type="search" id="clientSearch" class="clients-search"
+                                placeholder="Buscar por nombre o teléfono...">
+                        </div>
+                        <div class="clients-kpis">
+                            <div class="clients-kpi">
+                                <span class="clients-kpi-value" id="kpiTotalClients">—</span>
+                                <span class="clients-kpi-label">Clientes</span>
+                            </div>
+                            <div class="clients-kpi">
+                                <span class="clients-kpi-value" id="kpiNewMonth">—</span>
+                                <span class="clients-kpi-label">Nuevos este mes</span>
+                            </div>
+                            <div class="clients-kpi">
+                                <span class="clients-kpi-value" id="kpiTopClient" title="">—</span>
+                                <span class="clients-kpi-label">Cliente más fiel</span>
+                            </div>
+                            <div class="clients-kpi">
+                                <span class="clients-kpi-value" id="kpiTopService">—</span>
+                                <span class="clients-kpi-label">Servicio top</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="empty-state">
-                        <span class="empty-icon">👥</span>
-                        <p>Próximamente: Historial de clientes</p>
+
+                    <!-- Tabla -->
+                    <div class="clients-table-wrap">
+                        <div id="clientsLoading" class="clients-loading">
+                            <div class="spinner"></div>
+                            <span>Cargando clientes...</span>
+                        </div>
+                        <table class="clients-table" id="clientsTable" hidden>
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Última visita</th>
+                                    <th>Visitas</th>
+                                    <th>Último servicio</th>
+                                    <th>Frecuencia</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="clientsTableBody"></tbody>
+                        </table>
+                        <div id="clientsEmpty" class="empty-state" hidden>
+                            <span class="empty-icon">👥</span>
+                            <p>No se encontraron clientes</p>
+                        </div>
                     </div>
                 </section>
 
@@ -518,6 +563,17 @@
                     <span class="btn-icon">✓</span> Crear Cita
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal de Perfil de Cliente -->
+    <div id="clientModal" class="modal" hidden>
+        <div class="modal-backdrop" onclick="adminPanel.closeModal('clientModal')"></div>
+        <div class="modal-container modal-lg">
+            <button class="modal-close" onclick="adminPanel.closeModal('clientModal')">&times;</button>
+            <div class="modal-header" id="clientModalHeader"></div>
+            <div class="modal-body" id="clientModalBody"></div>
+            <div class="modal-footer" id="clientModalFooter"></div>
         </div>
     </div>
 
