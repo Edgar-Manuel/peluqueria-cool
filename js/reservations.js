@@ -1,6 +1,13 @@
 /**
  * Peluquería Cool - Reservations Module
- * CRUD de reservas con Supabase
+ *
+ * Crear citas: SIEMPRE a través de la Edge Function `create-appointment`.
+ * Nunca hacer INSERT directo en `reservations` desde el navegador:
+ * la validación de solapes con buffer + duración + horario vive en el
+ * servidor. La inserción directa permitía citas pisadas.
+ *
+ * El resto de operaciones (listar, confirmar, cancelar, notas) sigue
+ * en cliente con anon key + RLS. Esto migra cuando llegue Fase 3.
  */
 
 class ReservationsManager {
@@ -10,75 +17,114 @@ class ReservationsManager {
         this.cacheTimeout = 30000; // 30 segundos
     }
 
-    // Obtener cliente Supabase
     getClient() {
         return window.supabaseInstance || null;
     }
 
-    // Verificar disponibilidad (evitar dobles reservas)
-    async checkAvailability(date, time) {
-        const client = this.getClient();
-        if (!client) throw new Error('Database not connected');
-
-        const { data, error } = await client
-            .from('reservations')
-            .select('id')
-            .eq('date', date)
-            .eq('time', time)
-            .neq('status', 'cancelled'); // Ignorar las canceladas
-
-        if (error) throw error;
-        return data.length === 0; // true si está libre
-    }
-
-    // Crear nueva reserva (desde cualquier fuente)
+    /**
+     * Crea una nueva reserva llamando a la Edge Function `create-appointment`.
+     * Genera Idempotency-Key por petición para que un reintento por timeout
+     * no cree duplicados.
+     *
+     * Acepta el shape histórico del front:
+     *   { nombre, telefono, email?, fecha, hora, servicio, servicioNombre,
+     *     fuente?, notas?, duracion?, status? }
+     *
+     * Devuelve la fila completa de `reservations` insertada (o la existente
+     * si la idempotencia se activó).
+     */
     async create(reservationData) {
-        const client = this.getClient();
-        if (!client) throw new Error('Database not connected');
-
-        // 1. Comprobar disponibilidad real
-        const isAvailable = await this.checkAvailability(reservationData.fecha, reservationData.hora);
-        if (!isAvailable) {
-            throw new Error('Lo sentimos, este horario ya ha sido reservado justo ahora. Por favor, elige otro.');
+        const url = window.APP_CONFIG && window.APP_CONFIG.SUPABASE_URL;
+        const anonKey = window.APP_CONFIG && window.APP_CONFIG.SUPABASE_ANON_KEY;
+        if (!url || !anonKey) {
+            throw new Error('Configuración Supabase no disponible. Recarga la página.');
         }
 
-        // 2. Insertar en Supabase
-        const { data, error } = await client
-            .from('reservations')
-            .insert({
-                customer_name: reservationData.nombre,
-                customer_phone: reservationData.telefono,
-                customer_email: reservationData.email || null,
-                service: reservationData.servicio,
-                service_name: reservationData.servicioNombre,
-                date: reservationData.fecha,
-                time: reservationData.hora,
-                status: 'pending',
-                fuente: reservationData.fuente || 'web',
-                notes: reservationData.notas || '',
-                recordatorio_enviado: false,
-                duration_minutes: parseInt(reservationData.duracion || 30),
-                created_at: new Date().toISOString()
-            })
-            .select()
-            .single();
+        const idempotencyKey = (window.crypto && window.crypto.randomUUID)
+            ? window.crypto.randomUUID()
+            : 'idem-' + Date.now() + '-' + Math.random().toString(36).slice(2);
 
-        if (error) throw error;
+        // Mapeo del payload UI al contrato de la Edge Function.
+        const payload = {
+            nombre: reservationData.nombre,
+            telefono: reservationData.telefono,
+            email: reservationData.email || null,
+            fecha: reservationData.fecha,
+            hora: reservationData.hora,
+            servicios: Array.isArray(reservationData.servicios) && reservationData.servicios.length
+                ? reservationData.servicios
+                : [reservationData.servicio],
+            fuente: reservationData.fuente || 'web',
+            notas: reservationData.notas || null,
+        };
+        if (reservationData.status) payload.status = reservationData.status;
+        if (reservationData.duracion) {
+            const d = parseInt(reservationData.duracion, 10);
+            if (!isNaN(d) && d > 0) payload.duracion = d;
+        }
 
-        // 3. Notificar vía Webhook (Chatfuel/Make) - Silencioso para no bloquear al usuario
-        this.notifyWebhook(data).catch(err => console.error('Webhook Error:', err));
+        let response;
+        try {
+            response = await fetch(url + '/functions/v1/create-appointment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': anonKey,
+                    'Authorization': 'Bearer ' + anonKey,
+                    'Idempotency-Key': idempotencyKey,
+                },
+                body: JSON.stringify(payload),
+            });
+        } catch (networkErr) {
+            console.error('create-appointment network error:', networkErr);
+            throw new Error('No se pudo contactar con el servidor. Revisa tu conexión e inténtalo de nuevo.');
+        }
 
-        // 4. Crear notificación interna para el admin
-        await this.createNotification(data.id, `Nueva reserva (${data.fuente}) de ${reservationData.nombre}`);
+        let result = null;
+        try { result = await response.json(); } catch (_) { /* sin body */ }
 
-        return data;
+        if (!response.ok || !result || result.success !== true) {
+            const msg = (result && result.error) || ('Error inesperado (HTTP ' + response.status + ')');
+            const err = new Error(msg);
+            if (result && result.slot_sugerido) err.slotSugerido = result.slot_sugerido;
+            throw err;
+        }
+
+        // Reconstrucción defensiva por si una versión vieja de la función
+        // todavía no devolviera `reservation` en el body.
+        const reservationRow = result.reservation || {
+            id: result.appointment_id,
+            date: payload.fecha,
+            time: payload.hora,
+            hora_fin: result.hora_fin_estimada,
+            duration_minutes: result.duracion_total,
+            customer_name: payload.nombre,
+            customer_phone: payload.telefono,
+            customer_email: payload.email,
+            service: payload.servicios[0],
+            service_name: result.servicio_nombre,
+            servicios_ids: payload.servicios,
+            status: payload.status || 'pending',
+            fuente: payload.fuente,
+            notes: payload.notas,
+        };
+
+        // Webhook saliente (contrato legacy { action:'new_booking', data: row }).
+        // Sólo lo disparamos en creaciones reales, no en replays idempotentes:
+        // si el receptor ya recibió el primer aviso, no queremos duplicarlo.
+        if (!result.idempotent_replay) {
+            this.notifyWebhook(reservationRow).catch(err => console.error('Webhook Error:', err));
+        }
+
+        return reservationRow;
     }
 
-    // Notificar al sistema externo (Chatfuel/Make)
+    // Notificar al sistema externo (Chatfuel/Make/n8n).
+    // TODO Fase 3: mover este envío a un trigger Postgres + cola event_log
+    // con reintentos. Hoy se pierde el aviso si el receptor está caído.
     async notifyWebhook(reservation) {
-        let webhookUrl = window.APP_CONFIG?.WEBHOOK_URL || null;
+        let webhookUrl = (window.APP_CONFIG && window.APP_CONFIG.WEBHOOK_URL) || null;
 
-        // Intentar obtener URL actualizada desde la base de datos
         try {
             const client = this.getClient();
             if (client) {
@@ -87,10 +133,7 @@ class ReservationsManager {
                     .select('value')
                     .eq('key', 'webhook_url')
                     .single();
-                
-                if (data && data.value) {
-                    webhookUrl = data.value;
-                }
+                if (data && data.value) webhookUrl = data.value;
             }
         } catch (error) {
             console.error('Error obteniendo webhook db config:', error);
@@ -112,8 +155,6 @@ class ReservationsManager {
         }
     }
 
-
-
     // Obtener todas las reservas
     async getAll(filters = {}) {
         const client = this.getClient();
@@ -125,19 +166,10 @@ class ReservationsManager {
             .order('date', { ascending: true })
             .order('time', { ascending: true });
 
-        // Aplicar filtros
-        if (filters.status) {
-            query = query.eq('status', filters.status);
-        }
-        if (filters.date) {
-            query = query.eq('date', filters.date);
-        }
-        if (filters.dateFrom) {
-            query = query.gte('date', filters.dateFrom);
-        }
-        if (filters.dateTo) {
-            query = query.lte('date', filters.dateTo);
-        }
+        if (filters.status) query = query.eq('status', filters.status);
+        if (filters.date) query = query.eq('date', filters.date);
+        if (filters.dateFrom) query = query.gte('date', filters.dateFrom);
+        if (filters.dateTo) query = query.lte('date', filters.dateTo);
 
         const { data, error } = await query;
         if (error) throw error;
@@ -147,20 +179,17 @@ class ReservationsManager {
         return data;
     }
 
-    // Obtener reservas de hoy
     async getToday() {
         const today = new Date().toISOString().split('T')[0];
         return this.getAll({ date: today });
     }
 
-    // Obtener reservas de la semana
     async getThisWeek() {
         const today = new Date();
         const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay() + 1); // Lunes
-
+        startOfWeek.setDate(today.getDate() - today.getDay() + 1);
         const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6); // Domingo
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
 
         return this.getAll({
             dateFrom: startOfWeek.toISOString().split('T')[0],
@@ -168,27 +197,17 @@ class ReservationsManager {
         });
     }
 
-    // Obtener reservas pendientes
     async getPending() {
         return this.getAll({ status: 'pending' });
     }
 
-    // Actualizar estado de reserva
     async updateStatus(id, status, notes = null) {
         const client = this.getClient();
         if (!client) throw new Error('Database not connected');
 
-        const updateData = {
-            updated_at: new Date().toISOString()
-        };
-
-        if (status) {
-            updateData.status = status;
-        }
-
-        if (notes !== null) {
-            updateData.notes = notes;
-        }
+        const updateData = { updated_at: new Date().toISOString() };
+        if (status) updateData.status = status;
+        if (notes !== null) updateData.notes = notes;
 
         const { data, error } = await client
             .from('reservations')
@@ -201,27 +220,11 @@ class ReservationsManager {
         return data;
     }
 
-    // Confirmar reserva
-    async confirm(id) {
-        return this.updateStatus(id, 'confirmed');
-    }
+    async confirm(id)  { return this.updateStatus(id, 'confirmed'); }
+    async reject(id, reason = '') { return this.updateStatus(id, 'rejected', reason); }
+    async complete(id) { return this.updateStatus(id, 'completed'); }
+    async cancel(id)   { return this.updateStatus(id, 'cancelled'); }
 
-    // Rechazar reserva
-    async reject(id, reason = '') {
-        return this.updateStatus(id, 'rejected', reason);
-    }
-
-    // Completar reserva
-    async complete(id) {
-        return this.updateStatus(id, 'completed');
-    }
-
-    // Cancelar reserva
-    async cancel(id) {
-        return this.updateStatus(id, 'cancelled');
-    }
-
-    // Añadir nota
     async addNote(id, note) {
         const client = this.getClient();
         if (!client) throw new Error('Database not connected');
@@ -239,27 +242,6 @@ class ReservationsManager {
         return this.updateStatus(id, null, newNotes.trim());
     }
 
-    // Crear notificación
-    async createNotification(referenceId, message) {
-        const client = this.getClient();
-        if (!client) return;
-
-        try {
-            await client
-                .from('notifications')
-                .insert({
-                    type: 'reservation',
-                    reference_id: referenceId,
-                    message,
-                    read: false,
-                    created_at: new Date().toISOString()
-                });
-        } catch (error) {
-            console.error('Error creating notification:', error);
-        }
-    }
-
-    // Estadísticas
     async getStats() {
         const today = new Date().toISOString().split('T')[0];
         const startOfMonth = new Date();
