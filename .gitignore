@@ -34,3 +34,4 @@ execute-sql.ps1
 # Security - Config files with keys
 js/config.local.js
 js/config.js
+js/config.prod.js
